@@ -1,0 +1,85 @@
+:root {
+  --base: #0D0D0D;
+  --surface: #2A2A2A;
+  --surface-alt: #1A1A1A;
+  --accent: #00FF41;
+  --beige: #E8D5B7;
+  --mocha: #A47864;
+  --text: #E8D5B7;
+  --text-muted: rgba(232, 213, 183, 0.6);
+  --border: rgba(232, 213, 183, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--base);
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.label {
+  color: var(--accent);
+  letter-spacing: 4px;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+h1 {
+  font-family: system-ui, sans-serif;
+  font-size: 48px;
+  letter-spacing: 1px;
+  margin: 0 0 8px;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 2px;
+  margin-bottom: 48px;
+}
+
+.card {
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  font-family: system-ui, sans-serif;
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.card p {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.todo {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.todo li::before {
+  content: '> ';
+  color: var(--accent);
+}
