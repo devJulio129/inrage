@@ -1,0 +1,37 @@
+# Render Blueprint — deploys the backend (web service) and the admin (static site).
+# In Render: New + → Blueprint → connect this repo. Set the secret env vars when prompted.
+services:
+  # ── Backend API (Express + MongoDB) ──────────────────────────────
+  - type: web
+    name: inrage-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false          # set in dashboard (your Atlas URI)
+      - key: JWT_SECRET
+        sync: false          # set in dashboard
+      - key: CORS_ORIGIN
+        sync: false          # e.g. https://inrage-admin.onrender.com
+      # PORT is provided automatically by Render.
+
+  # ── Admin dashboard (React + Vite static site) ───────────────────
+  - type: web
+    name: inrage-admin
+    runtime: static
+    rootDir: admin
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false          # set to the deployed backend URL
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

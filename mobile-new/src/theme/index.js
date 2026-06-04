@@ -4,7 +4,7 @@ export const colors = {
   base: '#0D0D0D',         // fondo
   surface: '#2A2A2A',      // cards, surfaces
   surfaceAlt: '#1A1A1A',   // surfaces más sutiles
-  accent: '#00FF41',       // verde Matrix — usar con moderación, alto impacto
+  accent: '#46E22A',       // verde InRage — alto impacto, igual que el panel admin
   beige: '#E8D5B7',        // text on dark, neutral cálido
   mocha: '#A47864',        // acento secundario
   textPrimary: '#E8D5B7',
@@ -28,8 +28,10 @@ export const radii = {
   lg: 16
 };
 
+import { Platform } from 'react-native';
+
 export const type = {
-  // System mono para mantener vibe matrix/terminal sin requerir fonts custom todavía
-  mono: 'Courier',
+  // System mono real en cada plataforma (Courier no existe en Android).
+  mono: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
   sans: 'System'
 };

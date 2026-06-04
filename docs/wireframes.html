@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>InRage CrossFit — Wireframes</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: 1px; }
+  h1 .accent { color: #2e9e1f; font-style: italic; }
+  .sub { color: #555; font-size: 13px; margin: 0 0 18px; }
+  h2 { font-size: 15px; margin: 22px 0 8px; border-bottom: 2px solid #111; padding-bottom: 4px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+  .wf { border: 1.5px solid #111; border-radius: 6px; padding: 0; width: 250px; background: #fff; overflow: hidden; page-break-inside: avoid; }
+  .wf .title { background: #111; color: #fff; font-size: 11px; padding: 5px 8px; letter-spacing: .5px; }
+  .wf .body { padding: 10px; }
+  .box { border: 1.2px solid #333; border-radius: 4px; padding: 7px; margin: 6px 0; font-size: 11px; }
+  .box.fill { background: #2e9e1f; color: #fff; text-align: center; font-weight: bold; border-color: #2e9e1f; }
+  .box.muted { background: #f2f2f2; color: #555; }
+  .box.warn { background: #fff7e0; border-color: #d9a300; }
+  .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #777; margin: 6px 0 2px; }
+  .line { border: 0; border-top: 1px dashed #bbb; margin: 6px 0; }
+  .nav { display: flex; gap: 4px; font-size: 9px; }
+  .nav .item { border: 1px solid #333; border-radius: 3px; padding: 3px 5px; flex: 1; text-align: center; }
+  .nav .item.active { background: #111; color: #fff; }
+  .tabbar { display: flex; gap: 6px; border-top: 1.5px solid #111; margin-top: 8px; padding-top: 6px; font-size: 10px; }
+  .tabbar .t { flex: 1; text-align: center; }
+  .tabbar .t.active { color: #2e9e1f; font-weight: bold; }
+  .center { text-align: center; }
+  .note { font-size: 9px; color: #666; margin-top: 6px; font-style: italic; }
+  .row { display: flex; justify-content: space-between; font-size: 10px; padding: 2px 0; border-bottom: 1px dotted #ccc; }
+  .pill { display: inline-block; font-size: 8px; border: 1px solid #333; border-radius: 8px; padding: 1px 5px; }
+  .section-break { page-break-before: always; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #2e9e1f; color:#fff; display:flex; align-items:center; justify-content:center; margin: 0 auto 6px; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1><span class="accent">INRAGE</span> CROSSFIT — Wireframes</h1>
+  <p class="sub">Low-fidelity · móvil (React Native, atleta) + admin (React web). Una por pantalla, con estados.</p>
+
+  <h2>MÓVIL — App del atleta (bottom tabs)</h2>
+  <div class="grid">
+
+    <div class="wf">
+      <div class="title">1 · LOGIN / REGISTRO</div>
+      <div class="body">
+        <div class="center" style="font-weight:bold;font-style:italic;color:#2e9e1f;">INRAGE · CROSSFIT</div>
+        <div class="nav"><div class="item active">Iniciar sesión</div><div class="item">Crear cuenta</div></div>
+        <div class="lbl">Correo</div><div class="box">&nbsp;</div>
+        <div class="lbl">Contraseña</div><div class="box">•••••••• &nbsp;[Ver]</div>
+        <div class="box fill">INICIAR SESIÓN</div>
+        <div class="center" style="font-size:10px;">¿Olvidaste tu contraseña?</div>
+        <hr class="line"><div class="center" style="font-size:10px;">— o —</div>
+        <div class="box center">G · Continuar con Google</div>
+        <div class="note">Error → banner rojo. Loading → spinner en botón.</div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="title">2 · INICIO (aprobado)</div>
+      <div class="body">
+        <div style="font-size:10px;color:#555;">Hola,</div>
+        <div style="font-weight:bold;">Leonardo Test</div>
+        <div class="box fill">MARCAR ENTRADA AL BOX</div>
+        <div class="lbl">WOD · miércoles 3 jun</div>
+        <div class="box"><b>FRAN</b><hr class="line">21-15-9 Thrusters / Pull-ups · cap 10 min</div>
+        <div class="tabbar"><div class="t active">⌂ Inicio</div><div class="t">◍ Perfil</div></div>
+        <div class="note">Tras entrar → "Estás en el box · Marcar salida".</div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="title">3 · INICIO (pendiente)</div>
+      <div class="body">
+        <div style="font-weight:bold;">Hola, Pendiente Demo</div>
+        <div class="box warn"><b>⏳ Cuenta pendiente</b><br>En revisión. Cuando el gym te dé de alta verás el WOD.</div>
+        <div class="lbl">Información del gimnasio</div>
+        <div class="box muted">
+          <div class="row"><span>L–V</span><span>06–22</span></div>
+          <div class="row"><span>Sáb</span><span>08–14</span></div>
+          <div class="row"><span>Dirección</span><span>Av. Principal 123</span></div>
+        </div>
+        <div class="tabbar"><div class="t active">⌂ Inicio</div><div class="t">◍ Perfil</div></div>
+        <div class="note">Empty/estado: sin WOD ni check-in hasta aprobación.</div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="title">4 · PERFIL</div>
+      <div class="body">
+        <div class="avatar">LT</div>
+        <div class="center" style="font-weight:bold;">Leonardo Test</div>
+        <div class="center" style="font-size:10px;color:#555;">leo@inrage.dev</div>
+        <div class="center"><span class="pill">● Miembro activo</span></div>
+        <div class="box">
+          <div class="row"><span>Teléfono</span><span>833…</span></div>
+          <div class="row"><span>Miembro desde</span><span>03/2025</span></div>
+          <div class="row"><span>Visitas totales</span><span>12</span></div>
+        </div>
+        <div class="box center">Cerrar sesión</div>
+        <div class="tabbar"><div class="t">⌂ Inicio</div><div class="t active">◍ Perfil</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-break">ADMIN — Panel web (top navbar)</h2>
+  <div class="grid">
+
+    <div class="wf">
+      <div class="title">5 · LOGIN ADMIN</div>
+      <div class="body">
+        <div class="center" style="font-weight:bold;color:#2e9e1f;">INRAGE / ADMIN</div>
+        <div class="lbl">Correo</div><div class="box">&nbsp;</div>
+        <div class="lbl">Contraseña</div><div class="box">•••••• [👁]</div>
+        <div class="box fill">INICIAR SESIÓN</div>
+        <div class="note">Requiere rol admin. Error → "Acceso denegado".</div>
+      </div>
+    </div>
+
+    <div class="wf" style="width:340px;">
+      <div class="title">6 · EN EL GYM (en vivo)</div>
+      <div class="body">
+        <div class="nav"><div class="item active">En el gym</div><div class="item">Stats</div><div class="item">Atletas</div><div class="item">WOD</div><div class="item">Accesos</div></div>
+        <div class="lbl">En el gimnasio ahora (2) ● en vivo</div>
+        <div style="display:flex;gap:8px;">
+          <div class="box" style="flex:1;">● Leonardo<br><small>entrada 4:11</small></div>
+          <div class="box" style="flex:1;">● Ana Pérez<br><small>entrada 4:28</small></div>
+        </div>
+        <div class="note">Auto-refresh 8s. Empty → "Nadie ha marcado entrada".</div>
+      </div>
+    </div>
+
+    <div class="wf" style="width:340px;">
+      <div class="title">7 · ESTADÍSTICAS</div>
+      <div class="body">
+        <div class="nav"><div class="item">En el gym</div><div class="item active">Stats</div><div class="item">Atletas</div><div class="item">WOD</div><div class="item">Accesos</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <div class="box" style="flex:1;text-align:center;">En el gym<br><b>2</b></div>
+          <div class="box" style="flex:1;text-align:center;">Por aprobar<br><b>1</b></div>
+          <div class="box" style="flex:1;text-align:center;">Atletas<br><b>4</b></div>
+        </div>
+        <div class="box muted center">▁▃▂▅▁▃ Logins 14 días &nbsp;|&nbsp; ▂▁▅ Altas 6m</div>
+        <div class="box muted center">🟢🟡🔴 actividad &nbsp;|&nbsp; barras género</div>
+      </div>
+    </div>
+
+    <div class="wf" style="width:340px;">
+      <div class="title">8 · ATLETAS (aprobar inscripciones)</div>
+      <div class="body">
+        <div class="nav"><div class="item">En el gym</div><div class="item">Stats</div><div class="item active">Atletas</div><div class="item">WOD</div><div class="item">Accesos</div></div>
+        <div class="box warn">⏳ 1 atleta esperando aprobación</div>
+        <div class="box">🔴 Pendiente Demo <span class="pill">PENDIENTE</span>
+          <div style="text-align:right;"><span class="pill" style="background:#2e9e1f;color:#fff;border-color:#2e9e1f;">Dar de alta</span> Editar 🗑</div>
+        </div>
+        <div class="box">🟢 Leonardo Test <span class="pill">ALTA ✓</span></div>
+        <div class="note">Modal para crear/editar. Loading "Cargando atletas…".</div>
+      </div>
+    </div>
+
+    <div class="wf" style="width:340px;">
+      <div class="title">9 · WOD DEL DÍA (publicar)</div>
+      <div class="body">
+        <div class="nav"><div class="item">En el gym</div><div class="item">Stats</div><div class="item">Atletas</div><div class="item active">WOD</div><div class="item">Accesos</div></div>
+        <div class="lbl">Publicar WOD de hoy</div>
+        <div class="box">Título [__________]</div>
+        <div class="box">Descripción [________________]</div>
+        <div class="box">Fecha [____] &nbsp; <span class="pill" style="background:#2e9e1f;color:#fff;border-color:#2e9e1f;">Guardar WOD</span></div>
+        <div class="lbl">Historial</div>
+        <div class="box muted">3/6 · FRAN · 21-15-9 … [Editar][Eliminar]</div>
+      </div>
+    </div>
+
+    <div class="wf" style="width:340px;">
+      <div class="title">10 · ACCESOS (en vivo)</div>
+      <div class="body">
+        <div class="nav"><div class="item">En el gym</div><div class="item">Stats</div><div class="item">Atletas</div><div class="item">WOD</div><div class="item active">Accesos</div></div>
+        <div class="lbl">Historial de accesos ● en vivo</div>
+        <div class="box">Cliente Nuevo <span class="pill">CUENTA NUEVA ✦</span> · IP · 4:07</div>
+        <div class="box">Leonardo Test <span class="pill">LOGIN ✓</span> · IP · 3:08</div>
+        <div class="box">Ana Google <span class="pill">GOOGLE ✓</span> · IP · 2:08</div>
+        <div class="note">Auto-refresh 12s. Empty → "Sin registros aún".</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

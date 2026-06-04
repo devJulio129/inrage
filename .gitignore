@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Builds / generated
+dist/
+web-build/
+.expo/
+build/
+
+# Env (keep .env.example tracked)
+.env
+*.local
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Claude settings (keep launch.json shared)
+.claude/settings.local.json
