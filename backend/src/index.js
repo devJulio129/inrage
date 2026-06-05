@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import loginLogsRoutes from './routes/loginLogs.js';
 import workoutRoutes from './routes/workouts.js';
 import statsRoutes from './routes/stats.js';
+import gymInfoRoutes from './routes/gymInfo.js';
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/login-logs', loginLogsRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/gym-info', gymInfoRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

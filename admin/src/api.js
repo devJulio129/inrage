@@ -59,4 +59,12 @@ export const api = {
     getStats: () => request('/api/stats'),
 
     getActiveAttendance: () => request('/api/attendances/active'),
+
+    getGymInfo: () => request('/api/gym-info'),
+
+    saveGymInfo: (data) =>
+        request('/api/gym-info', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
 };

@@ -1,23 +1,31 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, radii, type } from '../theme';
 
-const SCHEDULE = [
-  { day: 'Lunes – Viernes', hours: '06:00 – 22:00' },
-  { day: 'Sábado', hours: '08:00 – 14:00' },
-  { day: 'Domingo', hours: 'Cerrado' }
-];
+const FALLBACK = {
+  schedule: [
+    { day: 'Lunes – Viernes', hours: '06:00 – 22:00' },
+    { day: 'Sábado', hours: '08:00 – 14:00' },
+    { day: 'Domingo', hours: 'Cerrado' }
+  ],
+  address: 'Av. Principal 123, Centro',
+  phone: '833 000 0000',
+  instagram: '@inrage.crossfit'
+};
 
-// General gym information — visible to everyone (and the only thing a
-// not-yet-approved athlete sees).
-export default function GymInfo() {
+// General gym information — managed by the admin, read here.
+// Receives `info` from the parent; falls back to defaults while it loads.
+export default function GymInfo({ info }) {
+  const data = info || FALLBACK;
+  const schedule = data.schedule?.length ? data.schedule : FALLBACK.schedule;
+
   return (
     <View>
       <Text style={styles.section}>INFORMACIÓN DEL GIMNASIO</Text>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Horarios</Text>
-        {SCHEDULE.map((s) => (
-          <View key={s.day} style={styles.row}>
+        {schedule.map((s, i) => (
+          <View key={i} style={styles.row}>
             <Text style={styles.day}>{s.day}</Text>
             <Text style={styles.hours}>{s.hours}</Text>
           </View>
@@ -26,9 +34,9 @@ export default function GymInfo() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Contacto</Text>
-        <InfoRow label="Dirección" value="Av. Principal 123, Centro" />
-        <InfoRow label="Teléfono" value="833 000 0000" />
-        <InfoRow label="Instagram" value="@inrage.crossfit" />
+        <InfoRow label="Dirección" value={data.address} />
+        <InfoRow label="Teléfono" value={data.phone} />
+        <InfoRow label="Instagram" value={data.instagram} />
       </View>
     </View>
   );
@@ -38,7 +46,7 @@ function InfoRow({ label, value }) {
   return (
     <View style={styles.row}>
       <Text style={styles.day}>{label}</Text>
-      <Text style={styles.hours}>{value}</Text>
+      <Text style={styles.hours}>{value || '—'}</Text>
     </View>
   );
 }

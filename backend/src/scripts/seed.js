@@ -6,6 +6,7 @@ import { Member } from '../models/Member.js';
 import { Attendance } from '../models/Attendance.js';
 import { Workout } from '../models/Workout.js';
 import { LoginLog } from '../models/LoginLog.js';
+import { GymInfo } from '../models/GymInfo.js';
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -20,8 +21,22 @@ async function seed() {
     Member.deleteMany({}),
     Attendance.deleteMany({}),
     Workout.deleteMany({}),
-    LoginLog.deleteMany({})
+    LoginLog.deleteMany({}),
+    GymInfo.deleteMany({})
   ]);
+
+  await GymInfo.create({
+    name: 'InRage CrossFit',
+    announcement: '¡Bienvenidos! Hoy enfócate en la técnica antes que en la carga. 💪',
+    schedule: [
+      { day: 'Lunes – Viernes', hours: '06:00 – 22:00' },
+      { day: 'Sábado', hours: '08:00 – 14:00' },
+      { day: 'Domingo', hours: 'Cerrado' }
+    ],
+    address: 'Av. Principal 123, Centro',
+    phone: '833 000 0000',
+    instagram: '@inrage.crossfit'
+  });
 
   const adminPass = await bcrypt.hash('admin123', 10);
   const memberPass = await bcrypt.hash('member123', 10);

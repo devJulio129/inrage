@@ -67,6 +67,13 @@ export default function App() {
   const [activeLoading, setActiveLoading] = useState(false);
   const [activeError, setActiveError] = useState(null);
 
+  // Gym info (admin-editable content for the mobile app)
+  const EMPTY_GYM = { name: '', announcement: '', scheduleText: '', address: '', phone: '', instagram: '' };
+  const [gymForm, setGymForm] = useState(EMPTY_GYM);
+  const [gymLoading, setGymLoading] = useState(false);
+  const [gymSaving, setGymSaving] = useState(false);
+  const [gymMsg, setGymMsg] = useState(null);
+
   // WOD
   const [wods, setWods] = useState([]);
   const [wodsLoading, setWodsLoading] = useState(false);
@@ -120,6 +127,54 @@ export default function App() {
       .catch(err => { setActiveError(err.message); setActiveLoading(false); });
   }
 
+  function fetchGymInfo() {
+    setGymLoading(true);
+    setGymMsg(null);
+    api.getGymInfo()
+      .then(data => {
+        setGymForm({
+          name: data.name || '',
+          announcement: data.announcement || '',
+          scheduleText: (data.schedule || []).map(s => `${s.day} | ${s.hours}`).join('\n'),
+          address: data.address || '',
+          phone: data.phone || '',
+          instagram: data.instagram || '',
+        });
+        setGymLoading(false);
+      })
+      .catch(err => { setGymMsg('Error: ' + err.message); setGymLoading(false); });
+  }
+
+  function handleGymChange(e) {
+    setGymForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  function handleGymSave(e) {
+    e.preventDefault();
+    setGymSaving(true);
+    setGymMsg(null);
+    const schedule = gymForm.scheduleText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const [day, hours] = line.split('|').map(s => (s || '').trim());
+        return { day, hours: hours || '' };
+      });
+    const payload = {
+      name: gymForm.name,
+      announcement: gymForm.announcement,
+      address: gymForm.address,
+      phone: gymForm.phone,
+      instagram: gymForm.instagram,
+      schedule,
+    };
+    api.saveGymInfo(payload)
+      .then(() => setGymMsg('Guardado ✓ — ya se ve en la app'))
+      .catch(err => setGymMsg('Error: ' + err.message))
+      .finally(() => setGymSaving(false));
+  }
+
   useEffect(() => {
     if (!token) return;
     fetchMembers();
@@ -131,6 +186,7 @@ export default function App() {
     if (tab === 'wod') fetchWods();
     if (tab === 'stats') fetchStats();
     if (tab === 'gym') fetchActive();
+    if (tab === 'info') fetchGymInfo();
   }, [token, tab]);
 
   // Live-refresh the access history every 12s so mobile logins appear on their own.
@@ -333,6 +389,7 @@ export default function App() {
           <button className={tab === 'stats' ? 'tab active' : 'tab'} onClick={() => setTab('stats')}>Estadísticas</button>
           <button className={tab === 'athletes' ? 'tab active' : 'tab'} onClick={() => setTab('athletes')}>Atletas</button>
           <button className={tab === 'wod' ? 'tab active' : 'tab'} onClick={() => setTab('wod')}>WOD del día</button>
+          <button className={tab === 'info' ? 'tab active' : 'tab'} onClick={() => setTab('info')}>Gimnasio</button>
           <button className={tab === 'logs' ? 'tab active' : 'tab'} onClick={() => setTab('logs')}>Accesos</button>
         </nav>
         <button className="btn-ghost" onClick={handleLogout}>Salir</button>
@@ -534,6 +591,48 @@ export default function App() {
               </div>
             </div>
           ))}
+        </section>
+      )}
+
+      {/* ── GIMNASIO (INFO EDITABLE) TAB ── */}
+      {tab === 'info' && (
+        <section>
+          <div className="section-head">
+            <h2>Información del gimnasio</h2>
+            <span className="muted" style={{ fontSize: 13 }}>Esto es lo que ven los atletas en la app 📱</span>
+          </div>
+
+          {gymLoading && <p className="muted">Cargando…</p>}
+
+          {!gymLoading && (
+            <form onSubmit={handleGymSave} className="card stack">
+              <label className="lbl">Aviso / recomendación del día (se destaca en la app)</label>
+              <textarea name="announcement" rows={3} placeholder="p. ej. Hoy enfócate en la técnica antes que en la carga 💪"
+                value={gymForm.announcement} onChange={handleGymChange} />
+
+              <label className="lbl">Nombre del gimnasio</label>
+              <input name="name" value={gymForm.name} onChange={handleGymChange} />
+
+              <label className="lbl">Horarios (una línea por fila — formato: Día | Horas)</label>
+              <textarea name="scheduleText" rows={4}
+                placeholder={'Lunes – Viernes | 06:00 – 22:00\nSábado | 08:00 – 14:00\nDomingo | Cerrado'}
+                value={gymForm.scheduleText} onChange={handleGymChange} />
+
+              <label className="lbl">Dirección</label>
+              <input name="address" value={gymForm.address} onChange={handleGymChange} />
+              <label className="lbl">Teléfono</label>
+              <input name="phone" value={gymForm.phone} onChange={handleGymChange} />
+              <label className="lbl">Instagram</label>
+              <input name="instagram" value={gymForm.instagram} onChange={handleGymChange} />
+
+              <div className="row">
+                <button type="submit" className="btn-primary" disabled={gymSaving}>
+                  {gymSaving ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+              {gymMsg && <p className={gymMsg.startsWith('Error') ? 'error' : 'ok'}>{gymMsg}</p>}
+            </form>
+          )}
         </section>
       )}
 

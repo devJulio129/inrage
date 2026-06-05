@@ -120,6 +120,8 @@ export const api = {
 
   getTodayWorkout: () => request('/api/workouts/today'),
 
+  getGymInfo: () => request('/api/gym-info'),
+
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),
   checkIn: () => request('/api/attendances/checkin', { method: 'POST' }),

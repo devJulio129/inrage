@@ -23,6 +23,8 @@ export default function HomeScreen({ user, onUserUpdate }) {
   const [checking, setChecking] = useState(false);
   const [checkinError, setCheckinError] = useState(null);
 
+  const [gymInfo, setGymInfo] = useState(null);
+
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
 
   async function load() {
@@ -36,6 +38,11 @@ export default function HomeScreen({ user, onUserUpdate }) {
     }
 
     const active = current?.role === 'admin' || current?.status !== 'pending';
+
+    // Gym info + daily announcement (managed by the admin) — for everyone.
+    try {
+      setGymInfo(await api.getGymInfo());
+    } catch {}
 
     if (active) {
       setWodError(null);
@@ -95,6 +102,14 @@ export default function HomeScreen({ user, onUserUpdate }) {
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
 
+      {/* Daily announcement / recommendation from the admin (everyone). */}
+      {!loading && gymInfo?.announcement ? (
+        <View style={styles.announce}>
+          <Text style={styles.announceLabel}>📣 AVISO DEL GIMNASIO</Text>
+          <Text style={styles.announceText}>{gymInfo.announcement}</Text>
+        </View>
+      ) : null}
+
       {/* PENDING: no WOD, only gym info + notice */}
       {!loading && !isActive && (
         <>
@@ -106,7 +121,7 @@ export default function HomeScreen({ user, onUserUpdate }) {
             </Text>
             <Text style={styles.pendingHint}>Desliza hacia abajo para actualizar.</Text>
           </View>
-          <GymInfo />
+          <GymInfo info={gymInfo} />
         </>
       )}
 
@@ -185,6 +200,19 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.xl },
   hello: { color: colors.textMuted, fontSize: 14 },
   userName: { color: colors.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 2 },
+
+  announce: {
+    backgroundColor: 'rgba(70,226,42,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.35)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg
+  },
+  announceLabel: { color: colors.accent, fontSize: 11, letterSpacing: 2, fontWeight: '800', marginBottom: 4 },
+  announceText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
 
   pendingCard: {
     backgroundColor: 'rgba(242,192,55,0.1)',

@@ -36,9 +36,10 @@
 - Probar primero en web (`expo start --web`); registrar el redirect URI.
 - Hoy el botón está visible y, sin configurar, muestra un aviso amable (no truena).
 
-### B. Info del gimnasio editable desde el admin
-- Hoy `mobile-new/src/components/GymInfo.js` tiene horarios/contacto **fijos**.
-- Crear modelo `GymInfo` + endpoint admin para editarlos → que el móvil los lea.
+### B. Info del gimnasio editable desde el admin ✅ HECHO
+- Modelo `GymInfo` (singleton) + `GET/PUT /api/gym-info` (PUT solo admin).
+- Admin: pestaña **Gimnasio** para editar horarios, contacto y el **aviso/recomendación del día**.
+- Móvil: `GymInfo` lee del API; el aviso del día se destaca en Inicio para todos.
 
 ### C. Perfil más completo
 - Editar perfil desde el móvil (teléfono, foto).
