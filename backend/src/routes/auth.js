@@ -127,4 +127,15 @@ router.get('/me', protect, (req, res) => {
   res.json(req.user);
 });
 
+// PATCH /api/auth/avatar  — guarda el avatar (data-URI base64) del usuario.
+router.patch('/avatar', protect, async (req, res, next) => {
+  try {
+    const { avatar } = req.body;
+    await Member.findByIdAndUpdate(req.user._id, { avatar });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

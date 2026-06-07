@@ -11,6 +11,7 @@ import loginLogsRoutes from './routes/loginLogs.js';
 import workoutRoutes from './routes/workouts.js';
 import statsRoutes from './routes/stats.js';
 import gymInfoRoutes from './routes/gymInfo.js';
+import prRoutes from './routes/prs.js';
 
 const app = express();
 
@@ -36,11 +37,12 @@ app.use('/api/login-logs', loginLogsRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/gym-info', gymInfoRoutes);
+app.use('/api/prs', prRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
 
-const PORT = process.env.PORT || 4010;
+const PORT = process.env.PORT || 4000;
 
 connectDB(process.env.MONGODB_URI)
   .then(() => {

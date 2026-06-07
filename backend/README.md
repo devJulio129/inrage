@@ -12,7 +12,7 @@ npm run seed   # optional: creates sample data
 npm run dev
 ```
 
-Server runs on `http://localhost:4000`.
+Server runs on `http://localhost:4010`.
 
 ## Endpoints
 

@@ -4,7 +4,7 @@ import { LoginLog } from '../models/LoginLog.js';
 
 export async function listMembers(req, res, next) {
   try {
-    const members = await Member.find().select('-password').lean();
+    const members = await Member.find().select('-password -avatar').lean();
 
     // Attach each member's most recent login so the admin UI can show a
     // traffic-light status (active / idle / never logged in).

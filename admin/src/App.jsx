@@ -161,15 +161,14 @@ export default function App() {
         const [day, hours] = line.split('|').map(s => (s || '').trim());
         return { day, hours: hours || '' };
       });
-    const payload = {
+    api.saveGymInfo({
       name: gymForm.name,
       announcement: gymForm.announcement,
       address: gymForm.address,
       phone: gymForm.phone,
       instagram: gymForm.instagram,
       schedule,
-    };
-    api.saveGymInfo(payload)
+    })
       .then(() => setGymMsg('Guardado ✓ — ya se ve en la app'))
       .catch(err => setGymMsg('Error: ' + err.message))
       .finally(() => setGymSaving(false));
@@ -293,7 +292,7 @@ export default function App() {
 
   function handleApprove(member) {
     api.updateMember(member._id, { status: 'active' })
-      .then(fetchMembers)
+      .then(() => { fetchMembers(); if (tab === 'logs') fetchLogs(); })
       .catch(err => alert('Error: ' + err.message));
   }
 
@@ -455,7 +454,20 @@ export default function App() {
             if (pending.length === 0) return null;
             return (
               <div className="approve-banner">
-                <span>⏳ <strong>{pending.length}</strong> atleta(s) esperando aprobación para ver el WOD.</span>
+                <p style={{ margin: '0 0 10px', fontWeight: 700 }}>
+                  ⏳ <strong>{pending.length}</strong> atleta(s) esperando aprobación para ver el WOD:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {pending.map(m => (
+                    <div key={m._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <span>
+                        <strong>{m.name}</strong>
+                        <span style={{ color: 'rgba(237,237,237,0.55)', fontSize: 13, marginLeft: 8 }}>{m.email}</span>
+                      </span>
+                      <button className="btn-primary btn-sm" onClick={() => handleApprove(m)}>Dar de alta</button>
+                    </div>
+                  ))}
+                </div>
               </div>
             );
           })()}
@@ -467,9 +479,18 @@ export default function App() {
           </div>
 
           {membersLoading && <p className="muted">Cargando atletas…</p>}
-          {membersError && <p className="error">Error: {membersError}</p>}
+          {membersError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <p className="error" style={{ margin: 0 }}>Error: {membersError}</p>
+              <button className="btn-ghost" onClick={fetchMembers}>Reintentar</button>
+            </div>
+          )}
 
-          {!membersLoading && !membersError && members.map(member => {
+          {!membersLoading && members.length === 0 && !membersError && (
+            <p className="muted">Sin atletas registrados aún.</p>
+          )}
+
+          {!membersLoading && members.map(member => {
             const st = loginStatus(member.lastLogin);
             return (
               <div key={member._id} className="card member-card">
@@ -648,19 +669,32 @@ export default function App() {
           {logsError && <p className="error">Error: {logsError}</p>}
           {!logsLoading && !logsError && logs.length === 0 && <p className="muted">Sin registros aún.</p>}
 
-          {!logsLoading && !logsError && logs.map(log => (
-            <div key={log._id} className="card log-card">
-              <div>
-                <p className="log-name">{log.name} {eventBadge(log.event)}</p>
-                <p className="email">{log.email}</p>
-                <p className="meta">Rol: {log.role} &nbsp;·&nbsp; IP: {log.ip || '—'}</p>
+          {!logsLoading && !logsError && logs.map(log => {
+            const isPending = log.member?.status === 'pending' && log.member?.role !== 'admin';
+            return (
+              <div key={log._id} className="card log-card">
+                <div>
+                  <p className="log-name">{log.name} {eventBadge(log.event)}</p>
+                  <p className="email">{log.email}</p>
+                  <p className="meta">Rol: {log.role} &nbsp;·&nbsp; IP: {log.ip || '—'}</p>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <p className="log-time" style={{ margin: 0 }}>
+                    {new Date(log.at).toLocaleDateString()}<br />
+                    <span>{new Date(log.at).toLocaleTimeString()}</span>
+                  </p>
+                  {isPending && (
+                    <button
+                      className="btn-primary btn-sm"
+                      onClick={() => handleApprove(log.member)}
+                    >
+                      Dar de alta
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="log-time">
-                {new Date(log.at).toLocaleDateString()}<br />
-                <span>{new Date(log.at).toLocaleTimeString()}</span>
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
     </div>

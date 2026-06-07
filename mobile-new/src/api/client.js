@@ -125,7 +125,24 @@ export const api = {
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),
   checkIn: () => request('/api/attendances/checkin', { method: 'POST' }),
-  checkOut: () => request('/api/attendances/checkout', { method: 'POST' })
+  checkOut: () => request('/api/attendances/checkout', { method: 'POST' }),
+
+  // Avatar
+  updateAvatar: (avatar) =>
+    request('/api/auth/avatar', {
+      method: 'PATCH',
+      body: JSON.stringify({ avatar })
+    }),
+
+  // Personal records
+  getPRs: () => request('/api/prs'),
+  upsertPR: (movement, value, unit) =>
+    request(`/api/prs/${encodeURIComponent(movement)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, unit })
+    }),
+  deletePR: (movement) =>
+    request(`/api/prs/${encodeURIComponent(movement)}`, { method: 'DELETE' })
 };
 
 export { API_URL };

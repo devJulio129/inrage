@@ -33,7 +33,10 @@
       "googleAndroidClientId": null
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      ["expo-image-picker", {
+        "photoLibraryUsageDescription": "Selecciona tu foto de perfil"
+      }]
     ]
   }
 }
