@@ -6,6 +6,20 @@ Built as the capstone project for the Circuit Stream / UBC Extended Learning Ful
 
 ---
 
+## Live demo
+
+| Piece | URL |
+|-------|-----|
+| Backend API | https://inrage-backend.onrender.com ([health check](https://inrage-backend.onrender.com/health)) |
+| Admin panel | https://inrage-admin.onrender.com |
+| Mobile app | Run with Expo Go — see [Quick start](#quick-start) — or build with EAS |
+
+> Both services run on Render's free tier: the first request after a quiet period takes ~30–60 s to wake the service up. Hit the health check first.
+
+📓 **[Development log (devlog)](docs/DEVLOG.md)** — weekly progress, challenges, and learnings across the four capstone weeks.
+
+---
+
 ## What it does
 
 **For members** (mobile app)
@@ -51,6 +65,8 @@ Both clients consume the same REST API. JWT is used for authentication.
 | Database | MongoDB Atlas + Mongoose 8 |
 | Auth | JWT + bcrypt + Passport.js (passport-jwt) |
 | Google sign-in | Expo Auth Session + Google tokeninfo endpoint |
+| Testing | Node native test runner (`node --test`) |
+| Containers | Docker + docker-compose (backend + admin/nginx) |
 | Deployment (backend) | Render (web service) |
 | Deployment (admin) | Render (static site) |
 | Deployment (mobile) | Expo Go (dev), EAS Build (production) |
@@ -114,6 +130,33 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. Log in with an account that has `role: "admin"`.
+
+### Alternative: Docker
+
+Run the backend + admin with one command (still needs `backend/.env` with your Atlas URI):
+
+```bash
+docker compose up --build
+```
+
+Backend on `http://localhost:4000`, admin on `http://localhost:80`.
+
+---
+
+## Testing
+
+The backend has a unit/integration test suite built on Node's native test runner — no extra test dependencies.
+
+```bash
+cd backend
+npm test
+```
+
+What's covered:
+
+- **Middleware in isolation** — `adminOnly` role gate, `errorHandler` status/message mapping, `notFound`.
+- **JWT contract** — token round-trip, 7-day expiry, rejection of tampered / expired / wrong-secret tokens.
+- **HTTP surface** — the real Express app on an ephemeral port: `/health`, 404 handling, 401 on every protected route without a token, and auth input validation. No database connection required.
 
 ---
 
@@ -213,11 +256,13 @@ All routes are prefixed with `/api`. Routes marked 🔒 require `Authorization: 
 | Admin — WOD management | ✅ |
 | Admin — gym info editor | ✅ |
 | Admin — access log (Accesos) | ✅ |
+| Backend — unit tests (`npm test`) | ✅ |
+| Docker (backend + admin + compose) | ✅ |
 | Deployment to Render | ✅ |
 
 ---
 
-## Out of scope (for now)
+## Future improvements
 
 - Class scheduling and reservation system
 - Payments and membership billing

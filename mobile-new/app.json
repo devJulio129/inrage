@@ -27,7 +27,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "http://localhost:4000",
+      "apiUrl": "https://inrage-backend.onrender.com",
       "googleClientId": null,
       "googleIosClientId": null,
       "googleAndroidClientId": null
