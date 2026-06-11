@@ -1,0 +1,78 @@
+import { test, describe, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+
+// passport-jwt reads JWT_SECRET when the strategy is created, so it must be
+// set before the app module is imported.
+process.env.JWT_SECRET ??= 'test-secret';
+const { createApp } = await import('../src/app.js');
+
+// Boot the real app on an ephemeral port. No database connection is made:
+// these tests only exercise routes that reject before touching MongoDB.
+let server;
+let baseUrl;
+
+before(async () => {
+  const app = createApp();
+  await new Promise((resolve) => {
+    server = app.listen(0, resolve);
+  });
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+after(() => new Promise((resolve) => server.close(resolve)));
+
+describe('GET /health', () => {
+  test('responds 200 with service status', async () => {
+    const res = await fetch(`${baseUrl}/health`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body, { status: 'ok', service: 'inrage-backend' });
+  });
+});
+
+describe('unknown routes', () => {
+  test('respond 404 with the method and path', async () => {
+    const res = await fetch(`${baseUrl}/api/does-not-exist`);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.equal(body.error, 'Not found: GET /api/does-not-exist');
+  });
+});
+
+describe('protected routes', () => {
+  const protectedRoutes = [
+    ['GET', '/api/members'],
+    ['GET', '/api/auth/me'],
+    ['GET', '/api/workouts/today'],
+    ['GET', '/api/attendances/me'],
+    ['GET', '/api/prs'],
+    ['GET', '/api/login-logs']
+  ];
+
+  for (const [method, route] of protectedRoutes) {
+    test(`${method} ${route} rejects requests without a token`, async () => {
+      const res = await fetch(`${baseUrl}${route}`, { method });
+      assert.equal(res.status, 401);
+    });
+  }
+
+  test('rejects a syntactically invalid bearer token', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/me`, {
+      headers: { Authorization: 'Bearer not-a-real-token' }
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+describe('auth input validation', () => {
+  test('POST /api/auth/google without idToken responds 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.error, 'Falta idToken');
+  });
+});
