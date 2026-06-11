@@ -22,6 +22,25 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// "hace 5 min" — relative time for logs and member cards.
+function timeAgo(date) {
+  const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60_000);
+  if (mins < 1) return 'hace un momento';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  return `hace ${Math.floor(hours / 24)} d`;
+}
+
+function EmptyState({ icon, children }) {
+  return (
+    <div className="card empty-state">
+      <span className="empty-icon">{icon}</span>
+      <p className="muted">{children}</p>
+    </div>
+  );
+}
+
 // Badge for an access-history event.
 function eventBadge(event) {
   if (event === 'register') return <span className="pill pill-yellow">cuenta nueva ✦</span>;
@@ -44,6 +63,7 @@ export default function App() {
   const [members, setMembers] = useState([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(null);
+  const [search, setSearch] = useState('');
 
   // Create / Edit
   const [showForm, setShowForm] = useState(false);
@@ -374,6 +394,12 @@ export default function App() {
   }
 
   // ── Dashboard ───────────────────────────────────────────────────
+  const pendingCount = members.filter(m => m.role !== 'admin' && m.status === 'pending').length;
+  const q = search.trim().toLowerCase();
+  const visibleMembers = q
+    ? members.filter(m => [m.name, m.email, m.phone].some(v => (v || '').toLowerCase().includes(q)))
+    : members;
+
   return (
     <div className="app">
       <header className="topbar">
@@ -386,7 +412,9 @@ export default function App() {
             En el gym{active.length > 0 && <span className="tab-count">{active.length}</span>}
           </button>
           <button className={tab === 'stats' ? 'tab active' : 'tab'} onClick={() => setTab('stats')}>Estadísticas</button>
-          <button className={tab === 'athletes' ? 'tab active' : 'tab'} onClick={() => setTab('athletes')}>Atletas</button>
+          <button className={tab === 'athletes' ? 'tab active' : 'tab'} onClick={() => setTab('athletes')}>
+            Atletas{pendingCount > 0 && <span className="tab-count warn" title={`${pendingCount} por aprobar`}>{pendingCount}</span>}
+          </button>
           <button className={tab === 'wod' ? 'tab active' : 'tab'} onClick={() => setTab('wod')}>WOD del día</button>
           <button className={tab === 'info' ? 'tab active' : 'tab'} onClick={() => setTab('info')}>Gimnasio</button>
           <button className={tab === 'logs' ? 'tab active' : 'tab'} onClick={() => setTab('logs')}>Accesos</button>
@@ -408,9 +436,7 @@ export default function App() {
           {activeLoading && active.length === 0 && <p className="muted">Cargando…</p>}
           {activeError && <p className="error">Error: {activeError}</p>}
           {!activeError && active.length === 0 && !activeLoading && (
-            <div className="card empty-gym">
-              <p className="muted" style={{ margin: 0 }}>Nadie ha marcado entrada todavía hoy.</p>
-            </div>
+            <EmptyState icon="🏋️">Nadie ha marcado entrada todavía hoy.</EmptyState>
           )}
 
           <div className="gym-grid">
@@ -472,6 +498,16 @@ export default function App() {
             );
           })()}
 
+          <div className="searchbar">
+            <span className="search-icon">🔍</span>
+            <input
+              placeholder="Buscar por nombre, correo o teléfono…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button type="button" className="search-clear" onClick={() => setSearch('')}>✕</button>}
+          </div>
+
           <div className="legend">
             <span><i className="dot green" /> Activo (≤7d)</span>
             <span><i className="dot yellow" /> Inactivo (≤30d)</span>
@@ -487,10 +523,14 @@ export default function App() {
           )}
 
           {!membersLoading && members.length === 0 && !membersError && (
-            <p className="muted">Sin atletas registrados aún.</p>
+            <EmptyState icon="🏋️">Sin atletas registrados aún. Crea el primero con “+ Crear atleta”.</EmptyState>
           )}
 
-          {!membersLoading && members.map(member => {
+          {!membersLoading && members.length > 0 && visibleMembers.length === 0 && (
+            <EmptyState icon="🔍">Sin resultados para «{search}».</EmptyState>
+          )}
+
+          {!membersLoading && visibleMembers.map(member => {
             const st = loginStatus(member.lastLogin);
             return (
               <div key={member._id} className="card member-card">
@@ -512,7 +552,11 @@ export default function App() {
                   </p>
                   <p className="sub">
                     Inscrito: {new Date(member.joinedAt || member.createdAt).toLocaleDateString()}
-                    {member.lastLogin && <> &nbsp;·&nbsp; Último acceso: {new Date(member.lastLogin).toLocaleString()}</>}
+                    {member.lastLogin && (
+                      <> &nbsp;·&nbsp; <span title={new Date(member.lastLogin).toLocaleString()}>
+                        Último acceso: {timeAgo(member.lastLogin)}
+                      </span></>
+                    )}
                   </p>
                 </div>
                 <div className="actions">
@@ -598,7 +642,9 @@ export default function App() {
           <h3 className="mt">Historial reciente</h3>
           {wodsLoading && <p className="muted">Cargando…</p>}
           {wodsError && <p className="error">Error: {wodsError}</p>}
-          {!wodsLoading && !wodsError && wods.length === 0 && <p className="muted">Sin WODs aún.</p>}
+          {!wodsLoading && !wodsError && wods.length === 0 && (
+            <EmptyState icon="📋">Sin WODs aún. Publica el primero arriba.</EmptyState>
+          )}
           {!wodsLoading && wods.map(w => (
             <div key={w._id} className="card wod-card">
               <div>
@@ -667,7 +713,9 @@ export default function App() {
 
           {logsLoading && <p className="muted">Cargando…</p>}
           {logsError && <p className="error">Error: {logsError}</p>}
-          {!logsLoading && !logsError && logs.length === 0 && <p className="muted">Sin registros aún.</p>}
+          {!logsLoading && !logsError && logs.length === 0 && (
+            <EmptyState icon="🕐">Sin registros aún. Aquí aparecerá cada login y registro de la app.</EmptyState>
+          )}
 
           {!logsLoading && !logsError && logs.map(log => {
             const isPending = log.member?.status === 'pending' && log.member?.role !== 'admin';
@@ -679,9 +727,9 @@ export default function App() {
                   <p className="meta">Rol: {log.role} &nbsp;·&nbsp; IP: {log.ip || '—'}</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                  <p className="log-time" style={{ margin: 0 }}>
-                    {new Date(log.at).toLocaleDateString()}<br />
-                    <span>{new Date(log.at).toLocaleTimeString()}</span>
+                  <p className="log-time" style={{ margin: 0 }} title={new Date(log.at).toLocaleString()}>
+                    <strong className="ago">{timeAgo(log.at)}</strong><br />
+                    <span>{new Date(log.at).toLocaleDateString()} · {new Date(log.at).toLocaleTimeString()}</span>
                   </p>
                   {isPending && (
                     <button

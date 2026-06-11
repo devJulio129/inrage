@@ -143,15 +143,21 @@ input, select, textarea { font-family: inherit; }
 .auth-hint strong { color: var(--accent); }
 
 /* ───────────── App shell ───────────── */
-.app { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+.app { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  padding-bottom: 18px;
+  padding: 22px 0 16px;
   margin-bottom: 22px;
   border-bottom: 1px solid var(--border);
+  background: rgba(13, 13, 13, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .brand-inline { display: flex; flex-direction: column; }
 .brand-name.sm { font-size: 22px; }
@@ -250,7 +256,18 @@ input, select, textarea { font-family: inherit; }
   border-radius: 14px;
   padding: 18px;
   margin-bottom: 12px;
+  transition: border-color .2s ease;
 }
+.card:hover { border-color: rgba(255, 255, 255, 0.16); }
+
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+  border-style: dashed;
+}
+.empty-state:hover { border-color: var(--border); }
+.empty-icon { display: block; font-size: 30px; margin-bottom: 10px; }
+.empty-state p { margin: 0; font-size: 14px; }
 .member-card { display: flex; align-items: flex-start; gap: 14px; }
 .member-card .dot { margin-top: 6px; }
 .member-info { flex: 1; min-width: 0; }
@@ -408,6 +425,39 @@ input, select, textarea { font-family: inherit; }
   border-radius: 10px;
   padding: 1px 7px;
 }
+.tab-count.warn { background: var(--yellow); color: #2b2104; }
+
+/* ───────────── Search bar (Atletas) ───────────── */
+.searchbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 14px;
+  background: rgba(0, 0, 0, 0.3);
+  margin-bottom: 14px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.searchbar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search-icon { opacity: .55; font-size: 14px; }
+.searchbar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  padding: 12px 0;
+  font-size: 14px;
+}
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 4px;
+}
+.search-clear:hover { color: var(--text); }
 
 /* En el gym (live) */
 .gym-grid {
@@ -418,4 +468,42 @@ input, select, textarea { font-family: inherit; }
 .gym-card { display: flex; align-items: flex-start; gap: 12px; border-left: 3px solid var(--accent); }
 .gym-card .dot { margin-top: 6px; animation: pulse 1.6s infinite; }
 .gym-card h3 { margin: 0 0 4px; font-size: 16px; }
-.empty-gym { text-align: center; padding: 32px; }
+
+/* Relative time in logs */
+.log-time .ago { color: var(--text); font-size: 13px; }
+
+/* ───────────── Accessibility / details ───────────── */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field input:focus-visible, .stack input:focus-visible,
+.stack select:focus-visible, .stack textarea:focus-visible,
+.searchbar input:focus-visible { outline: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--base); }
+::-webkit-scrollbar-thumb { background: #2e2e2e; border-radius: 6px; border: 2px solid var(--base); }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* ───────────── Mobile (gym staff on a phone) ───────────── */
+@media (max-width: 720px) {
+  .app { padding: 0 14px 60px; }
+  .topbar { padding: 14px 0 10px; gap: 10px; }
+  .tabs {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex-shrink: 0; }
+
+  .section-head { flex-wrap: wrap; gap: 10px; }
+  .member-card { flex-wrap: wrap; }
+  .member-card .actions { width: 100%; justify-content: flex-end; }
+  .wod-card { flex-direction: column; }
+  .wod-card .actions { align-self: flex-end; }
+  .log-card { align-items: flex-start; gap: 10px; }
+  .kpi-value { font-size: 30px; }
+  .bars { height: 120px; }
+}
