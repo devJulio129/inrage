@@ -8,34 +8,51 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 
+// Nombres en inglés, como se publican en el pizarrón del box.
 const MOVEMENTS = [
   {
-    category: 'Levantamiento Olímpico', items: [
-      { key: 'snatch', label: 'Arrancada', unit: 'kg' },
-      { key: 'clean_and_jerk', label: 'Envión', unit: 'kg' },
+    category: 'Olympic Lifting', items: [
+      { key: 'snatch', label: 'Snatch', unit: 'kg' },
+      { key: 'power_snatch', label: 'Power Snatch', unit: 'kg' },
+      { key: 'clean', label: 'Clean', unit: 'kg' },
       { key: 'power_clean', label: 'Power Clean', unit: 'kg' },
+      { key: 'clean_and_jerk', label: 'Clean & Jerk', unit: 'kg' },
+      { key: 'jerk', label: 'Jerk', unit: 'kg' },
     ]
   },
   {
-    category: 'Powerlifting', items: [
-      { key: 'back_squat', label: 'Sentadilla', unit: 'kg' },
-      { key: 'front_squat', label: 'Sentadilla Frontal', unit: 'kg' },
-      { key: 'deadlift', label: 'Peso Muerto', unit: 'kg' },
-      { key: 'bench_press', label: 'Press Banca', unit: 'kg' },
-      { key: 'overhead_press', label: 'Press Militar', unit: 'kg' },
+    category: 'Strength', items: [
+      { key: 'back_squat', label: 'Back Squat', unit: 'kg' },
+      { key: 'front_squat', label: 'Front Squat', unit: 'kg' },
+      { key: 'overhead_squat', label: 'Overhead Squat', unit: 'kg' },
+      { key: 'deadlift', label: 'Deadlift', unit: 'kg' },
+      { key: 'bench_press', label: 'Bench Press', unit: 'kg' },
+      { key: 'overhead_press', label: 'Strict Press', unit: 'kg' },
+      { key: 'push_press', label: 'Push Press', unit: 'kg' },
+      { key: 'thruster', label: 'Thruster', unit: 'kg' },
     ]
   },
   {
-    category: 'Gimnasia', items: [
-      { key: 'pull_ups', label: 'Pull-ups', unit: 'reps' },
+    category: 'Gymnastics · máx. reps', items: [
+      { key: 'pull_ups', label: 'Pull Ups', unit: 'reps' },
+      { key: 'chest_to_bar', label: 'Chest to Bar', unit: 'reps' },
+      { key: 'muscle_ups', label: 'Muscle Ups', unit: 'reps' },
+      { key: 'bar_muscle_ups', label: 'Bar Muscle Ups', unit: 'reps' },
       { key: 'handstand_push_ups', label: 'HSPU', unit: 'reps' },
-      { key: 'muscle_ups', label: 'Muscle-ups', unit: 'reps' },
       { key: 'toes_to_bar', label: 'Toes to Bar', unit: 'reps' },
+      { key: 'push_ups', label: 'Push Ups', unit: 'reps' },
+      { key: 'ring_dips', label: 'Ring Dips', unit: 'reps' },
+      { key: 'double_unders', label: 'Double Unders', unit: 'reps' },
+      { key: 'wall_balls', label: 'Wall Balls', unit: 'reps' },
+      { key: 'pistols', label: 'Pistols', unit: 'reps' },
+      { key: 'sit_ups', label: 'Sit Ups', unit: 'reps' },
+      { key: 'burpees', label: 'Burpees', unit: 'reps' },
     ]
   },
   {
     category: 'Cardio', items: [
-      { key: 'run_400m', label: '400 m carrera', unit: 'time' },
+      { key: 'run_400m', label: '400 m Run', unit: 'time' },
+      { key: 'row_500m', label: '500 m Row', unit: 'time' },
     ]
   },
 ];

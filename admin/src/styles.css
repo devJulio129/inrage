@@ -363,6 +363,29 @@ input, select, textarea { font-family: inherit; }
   line-height: 1.6;
 }
 
+/* WOD builder (selector de movimientos) */
+.wod-builder { display: flex; gap: 8px; align-items: stretch; }
+.wod-builder .wb-qty { width: 72px; flex-shrink: 0; }
+.wod-builder .wb-name { flex: 1; min-width: 0; }
+.wod-builder .wb-pct { width: 72px; flex-shrink: 0; }
+.wod-builder input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.wod-builder input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.wod-builder input:disabled { opacity: 0.35; cursor: not-allowed; }
+.wod-builder button { white-space: nowrap; }
+@media (max-width: 840px) {
+  .wod-builder { flex-wrap: wrap; }
+  .wod-builder .wb-name { flex-basis: 100%; order: -1; }
+}
+
 /* WOD comments (admin) */
 .wod-comments { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 .wod-comment {

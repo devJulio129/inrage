@@ -24,28 +24,62 @@ import { fmtSecs } from './ProfileScreen';
 // El coach escribe líneas con porcentaje — "30 power cleans (55%)" — y la
 // app calcula la dosis de cada atleta con SUS récords.
 const PR_LABELS = {
-  pull_ups: 'Pull-ups', muscle_ups: 'Muscle-ups', handstand_push_ups: 'HSPU',
-  toes_to_bar: 'Toes to Bar', snatch: 'Arrancada', clean_and_jerk: 'Envión',
-  power_clean: 'Power Clean', front_squat: 'Sentadilla Frontal', back_squat: 'Sentadilla',
-  deadlift: 'Peso Muerto', bench_press: 'Press Banca', overhead_press: 'Press Militar',
-  run_400m: '400 m carrera'
+  snatch: 'Snatch', power_snatch: 'Power Snatch', clean: 'Clean', power_clean: 'Power Clean',
+  clean_and_jerk: 'Clean & Jerk', jerk: 'Jerk', thruster: 'Thruster', push_press: 'Push Press',
+  overhead_press: 'Strict Press', overhead_squat: 'Overhead Squat', front_squat: 'Front Squat',
+  back_squat: 'Back Squat', deadlift: 'Deadlift', bench_press: 'Bench Press',
+  pull_ups: 'Pull Ups', chest_to_bar: 'Chest to Bar', muscle_ups: 'Muscle Ups',
+  bar_muscle_ups: 'Bar Muscle Ups', handstand_push_ups: 'HSPU', toes_to_bar: 'Toes to Bar',
+  push_ups: 'Push Ups', ring_dips: 'Ring Dips', double_unders: 'Double Unders',
+  wall_balls: 'Wall Balls', pistols: 'Pistols', sit_ups: 'Sit Ups', burpees: 'Burpees',
+  run_400m: '400 m Run', row_500m: '500 m Row'
 };
+
+// Catálogo de movimientos del pizarrón (inglés + sinónimos en español).
+// El orden importa: lo específico va antes de lo genérico.
+const MOVES = [
+  // Cardio por calorías → solo intensidad (RPE), no requiere PR.
+  { re: /cal\b.*(row|bike|ski|assault|echo)|(row|bike|ski|assault|echo).*\bcal/, kind: 'rpe' },
+  { re: /(assault|echo)\s*bike|bike\s*erg|\bbike\b|\bski\b/, kind: 'rpe' },
+  // Cardio por metros → ritmo según el PR de referencia.
+  { re: /run|carrera|corre/, key: 'run_400m', kind: 'run', base: 400 },
+  { re: /row|remo/, key: 'row_500m', kind: 'run', base: 500 },
+  // Halterofilia y fuerza (peso) — específico primero.
+  { re: /power\s*snatch/, key: 'power_snatch', kind: 'weight' },
+  { re: /snatch|arrancada/, key: 'snatch', kind: 'weight' },
+  { re: /clean\s*(&|and|y)?\s*jerk|envi[oó]n/, key: 'clean_and_jerk', kind: 'weight' },
+  { re: /power\s*clean/, key: 'power_clean', kind: 'weight' },
+  { re: /clean/, key: 'clean', kind: 'weight' },
+  { re: /jerk/, key: 'jerk', kind: 'weight' },
+  { re: /thruster/, key: 'thruster', kind: 'weight' },
+  { re: /push\s*press/, key: 'push_press', kind: 'weight' },
+  { re: /(strict|shoulder)\s*press|press militar|ohp/, key: 'overhead_press', kind: 'weight' },
+  { re: /overhead\s*squat|ohs/, key: 'overhead_squat', kind: 'weight' },
+  { re: /front\s*squat|sentadilla frontal/, key: 'front_squat', kind: 'weight' },
+  { re: /(back\s*)?squat|sentadilla/, key: 'back_squat', kind: 'weight' },
+  { re: /deadlift|peso muerto/, key: 'deadlift', kind: 'weight' },
+  { re: /bench|banca/, key: 'bench_press', kind: 'weight' },
+  // Gimnasia (máx. reps de corrido) — específico primero.
+  { re: /chest.?to.?bar|c2b/, key: 'chest_to_bar', kind: 'reps' },
+  { re: /bar\s*muscle.?up/, key: 'bar_muscle_ups', kind: 'reps' },
+  { re: /muscle.?up/, key: 'muscle_ups', kind: 'reps' },
+  { re: /pull.?up|dominada/, key: 'pull_ups', kind: 'reps' },
+  { re: /hspu|handstand\s*push/, key: 'handstand_push_ups', kind: 'reps' },
+  { re: /toes.?to.?bar|t2b|knees.?to/, key: 'toes_to_bar', kind: 'reps' },
+  { re: /push.?up|lagartija/, key: 'push_ups', kind: 'reps' },
+  { re: /dip/, key: 'ring_dips', kind: 'reps' },
+  { re: /double.?under|\bdu\b/, key: 'double_unders', kind: 'reps' },
+  { re: /wall\s*ball/, key: 'wall_balls', kind: 'reps' },
+  { re: /pistol/, key: 'pistols', kind: 'reps' },
+  { re: /sit.?up/, key: 'sit_ups', kind: 'reps' },
+  { re: /burpee/, key: 'burpees', kind: 'reps' }
+];
 
 function matchMovement(text) {
   const t = text.toLowerCase();
-  if (/(pull.?up|dominada)/.test(t)) return { key: 'pull_ups', kind: 'reps' };
-  if (/muscle.?up/.test(t)) return { key: 'muscle_ups', kind: 'reps' };
-  if (/(hspu|handstand)/.test(t)) return { key: 'handstand_push_ups', kind: 'reps' };
-  if (/(toes.?to.?bar|t2b)/.test(t)) return { key: 'toes_to_bar', kind: 'reps' };
-  if (/snatch|arrancada/.test(t)) return { key: 'snatch', kind: 'weight' };
-  if (/(clean.*jerk|envi[oó]n)/.test(t)) return { key: 'clean_and_jerk', kind: 'weight' };
-  if (/clean/.test(t)) return { key: 'power_clean', kind: 'weight' };
-  if (/(front squat|sentadilla frontal)/.test(t)) return { key: 'front_squat', kind: 'weight' };
-  if (/(squat|sentadilla)/.test(t)) return { key: 'back_squat', kind: 'weight' };
-  if (/(deadlift|peso muerto)/.test(t)) return { key: 'deadlift', kind: 'weight' };
-  if (/(bench|banca)/.test(t)) return { key: 'bench_press', kind: 'weight' };
-  if (/(overhead|militar|ohp)/.test(t)) return { key: 'overhead_press', kind: 'weight' };
-  if (/(run|carrera|corr|mts|metros|\bm\b)/.test(t)) return { key: 'run_400m', kind: 'run' };
+  for (const mov of MOVES) {
+    if (mov.re.test(t)) return mov;
+  }
   return null;
 }
 
@@ -65,8 +99,14 @@ function personalizeLine(line, prs) {
   const mov = matchMovement(m[2]);
   if (!mov || !qty || !pct) return null;
 
-  const pr = prs[mov.key];
   const base = { line: line.trim(), key: mov.key };
+
+  // Calorías en máquina: el % se traduce directo a intensidad percibida.
+  if (mov.kind === 'rpe') {
+    return { ...base, rx: rpeForPct(pct), hint: 'intensidad sugerida' };
+  }
+
+  const pr = prs[mov.key];
   if (!pr) return { ...base, missing: PR_LABELS[mov.key] || m[2] };
 
   if (mov.kind === 'reps') {
@@ -87,9 +127,13 @@ function personalizeLine(line, prs) {
     return { ...base, rx: `${rounded} ${pr.unit}`, hint: `PR: ${pr.value} ${pr.unit}` };
   }
   if (mov.kind === 'run') {
-    // Ritmo del PR de 400 m escalado a la distancia y a la intensidad.
-    const target = (pr.value * (qty / 400)) / (pct / 100);
-    return { ...base, rx: `≈ ${fmtSecs(target)} · ${rpeForPct(pct)}`, hint: `400 m: ${fmtSecs(pr.value)}` };
+    // Ritmo del PR de referencia escalado a la distancia y a la intensidad.
+    const target = (pr.value * (qty / mov.base)) / (pct / 100);
+    return {
+      ...base,
+      rx: `≈ ${fmtSecs(target)} · ${rpeForPct(pct)}`,
+      hint: `${mov.base} m: ${fmtSecs(pr.value)}`
+    };
   }
   return null;
 }

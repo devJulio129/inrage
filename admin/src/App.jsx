@@ -7,6 +7,43 @@ const EMPTY_FORM = {
 
 const EMPTY_WOD = { title: '', description: '', date: '' };
 
+// Catálogo de movimientos de CrossFit (nombres del pizarrón, en inglés).
+// pct: true → la app puede personalizar la dosis con el PR del atleta.
+const CF_MOVEMENTS = [
+  // Olympic lifting
+  { name: 'Snatch', pct: true }, { name: 'Power Snatch', pct: true }, { name: 'Hang Snatch', pct: true },
+  { name: 'Squat Snatch', pct: true }, { name: 'Clean', pct: true }, { name: 'Power Clean', pct: true },
+  { name: 'Hang Power Clean', pct: true }, { name: 'Squat Clean', pct: true },
+  { name: 'Clean & Jerk', pct: true }, { name: 'Jerk', pct: true }, { name: 'Push Jerk', pct: true },
+  { name: 'Split Jerk', pct: true },
+  // Strength
+  { name: 'Back Squat', pct: true }, { name: 'Front Squat', pct: true }, { name: 'Overhead Squat', pct: true },
+  { name: 'Deadlift', pct: true }, { name: 'Sumo Deadlift', pct: true }, { name: 'Bench Press', pct: true },
+  { name: 'Strict Press', pct: true }, { name: 'Push Press', pct: true }, { name: 'Thruster', pct: true },
+  // Gymnastics
+  { name: 'Pull Ups', pct: true }, { name: 'Chest to Bar Pull Ups', pct: true }, { name: 'Strict Pull Ups', pct: true },
+  { name: 'Muscle Ups', pct: true }, { name: 'Bar Muscle Ups', pct: true },
+  { name: 'Handstand Push Ups', pct: true }, { name: 'Strict Handstand Push Ups', pct: true },
+  { name: 'Toes to Bar', pct: true }, { name: 'Knees to Elbows', pct: true },
+  { name: 'Push Ups', pct: true }, { name: 'Ring Dips', pct: true }, { name: 'Dips', pct: true },
+  { name: 'Double Unders', pct: true }, { name: 'Single Unders', pct: false },
+  { name: 'Wall Balls', pct: true }, { name: 'Pistols', pct: true }, { name: 'Sit Ups', pct: true },
+  { name: 'GHD Sit Ups', pct: false }, { name: 'Air Squats', pct: false }, { name: 'Burpees', pct: true },
+  { name: 'Burpee Box Jump Overs', pct: false }, { name: 'Box Jumps', pct: false },
+  { name: 'Box Jump Overs', pct: false }, { name: 'Wall Walks', pct: false }, { name: 'Rope Climbs', pct: false },
+  { name: 'Pistol Squats', pct: false }, { name: 'Handstand Walk (mts)', pct: false },
+  // Weights / odd objects
+  { name: 'Kettlebell Swings', pct: false }, { name: 'KB Snatch', pct: false }, { name: 'Goblet Squats', pct: false },
+  { name: 'Dumbbell Snatch', pct: false }, { name: 'Dumbbell Thrusters', pct: false },
+  { name: 'Devil Press', pct: false }, { name: 'Lunges', pct: false }, { name: 'Walking Lunges', pct: false },
+  { name: 'Overhead Walking Lunges', pct: false }, { name: 'Farmer Carry (mts)', pct: false },
+  { name: 'Sled Push (mts)', pct: false },
+  // Monostructural
+  { name: 'mts Run', pct: true }, { name: 'mts Row', pct: true }, { name: 'cal Row', pct: true },
+  { name: 'cal Bike', pct: true }, { name: 'cal Ski', pct: true }, { name: 'mts Ski', pct: false },
+  { name: 'min Rest', pct: false },
+];
+
 // Traffic-light status based on the member's most recent login.
 function loginStatus(lastLogin) {
   if (!lastLogin) {
@@ -171,6 +208,9 @@ export default function App() {
 
   // WOD
   const [openCommentsId, setOpenCommentsId] = useState(null);
+  const [mvQty, setMvQty] = useState('');
+  const [mvName, setMvName] = useState('');
+  const [mvPct, setMvPct] = useState('');
   const [wods, setWods] = useState([]);
   const [wodsLoading, setWodsLoading] = useState(false);
   const [wodsError, setWodsError] = useState(null);
@@ -395,6 +435,25 @@ export default function App() {
   // ── WOD helpers ─────────────────────────────────────────────────
   function handleWodChange(e) {
     setWodForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
+  // Whether the selected movement supports % personalization.
+  const mvEntry = CF_MOVEMENTS.find(m => m.name.toLowerCase() === mvName.trim().toLowerCase());
+  const mvPctAllowed = mvEntry ? mvEntry.pct : true;
+
+  function addWodLine() {
+    const qty = mvQty.trim();
+    const name = mvName.trim();
+    if (!qty || !name) return;
+    const pct = mvPctAllowed ? mvPct.trim() : '';
+    const line = `${qty} ${name}${pct ? ` (${pct}%)` : ''}`;
+    setWodForm(prev => ({
+      ...prev,
+      description: prev.description ? `${prev.description}\n${line}` : line
+    }));
+    setMvQty('');
+    setMvName('');
+    setMvPct('');
   }
 
   function handleWodSubmit(e) {
@@ -711,9 +770,33 @@ export default function App() {
             <h3>{wodForm.date && wodForm.date !== todayStr() ? 'Editar WOD' : 'Publicar WOD de hoy'}</h3>
             <form onSubmit={handleWodSubmit} className="stack">
               <input name="title" placeholder="Título (p. ej. FRAN)" value={wodForm.title} onChange={handleWodChange} required />
+
+              <label className="lbl">Agregar movimiento (con % la app personaliza la dosis con los PRs de cada atleta)</label>
+              <div className="wod-builder">
+                <input
+                  className="wb-qty" type="number" min="1" placeholder="#"
+                  value={mvQty} onChange={e => setMvQty(e.target.value)}
+                  title="Reps, metros o calorías"
+                />
+                <input
+                  className="wb-name" list="cf-moves" placeholder="Movimiento — escribe para buscar (Power Clean, mts Run…)"
+                  value={mvName} onChange={e => setMvName(e.target.value)}
+                />
+                <datalist id="cf-moves">
+                  {CF_MOVEMENTS.map(m => <option key={m.name} value={m.name} />)}
+                </datalist>
+                <input
+                  className="wb-pct" type="number" min="1" max="120" placeholder="%"
+                  value={mvPct} onChange={e => setMvPct(e.target.value)}
+                  disabled={!mvPctAllowed}
+                  title={mvPctAllowed ? 'Opcional: % del PR del atleta' : 'Este movimiento no usa porcentaje'}
+                />
+                <button type="button" className="btn-ghost" onClick={addWodLine}>+ Añadir</button>
+              </div>
+
               <textarea
                 name="description"
-                placeholder={'Descripción del entrenamiento…\n\nTip: agrega un porcentaje y la app calcula la dosis de cada atleta con sus PRs:\n  40 pull ups (50%)\n  30 power cleans (55%)\n  200 mts run (75%)'}
+                placeholder={'Descripción del entrenamiento…\n\nUsa el selector de arriba o escribe directo. Con porcentaje, cada atleta ve su dosis:\n  40 Pull Ups (50%)\n  30 Power Cleans (55%)\n  200 mts Run (75%)'}
                 rows={8} value={wodForm.description} onChange={handleWodChange} required
               />
               <label className="lbl">Fecha (vacío = hoy)</label>
