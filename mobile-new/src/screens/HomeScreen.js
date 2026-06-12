@@ -282,8 +282,7 @@ export default function HomeScreen({ user, onUserUpdate }) {
     }
   }
 
-  const heroScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] });
-  const heroGlow = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] });
+  const heroScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
   const insideOpacity = insideAnim;
   const insideShift = insideAnim.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
 
@@ -328,58 +327,44 @@ export default function HomeScreen({ user, onUserUpdate }) {
         </>
       )}
 
-      {/* FUERA DEL BOX: la entrada es la puerta al entrenamiento */}
-      {!loading && isActive && !inGym && (
+      {/* ACTIVO: check-in como acción propia + WOD siempre visible */}
+      {!loading && isActive && (
         <>
-          <View style={styles.gate}>
-            <Animated.View style={[styles.heroGlow, { opacity: heroGlow, transform: [{ scale: heroScale }] }]} />
-            <Animated.View style={{ transform: [{ scale: heroScale }] }}>
-              <Pressable onPress={checkIn} disabled={checking} style={styles.heroBtn}>
-                {checking ? (
-                  <ActivityIndicator color="#05230b" size="large" />
-                ) : (
-                  <>
-                    <Ionicons name="barbell" size={34} color="#05230b" />
-                    <Text style={styles.heroBtnText}>ENTRAR{'\n'}AL BOX</Text>
-                  </>
-                )}
-              </Pressable>
-            </Animated.View>
-            <Text style={styles.gateHint}>Marca tu entrada para desbloquear el WOD de hoy</Text>
-            {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
-          </View>
-
-          {/* WOD bloqueado: solo el título como teaser */}
-          <View style={styles.lockedCard}>
-            <Ionicons name="lock-closed" size={18} color={colors.textMuted} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.lockedLabel}>WOD DE HOY</Text>
-              <Text style={styles.lockedTitle}>
-                {wodEmpty ? 'Aún no publicado' : workout ? workout.title : wodError ? '—' : '…'}
-              </Text>
-            </View>
-          </View>
-
-          <GymInfo info={gymInfo} />
-        </>
-      )}
-
-      {/* DENTRO DEL BOX: WOD completo + comentarios */}
-      {!loading && isActive && inGym && (
-        <Animated.View style={{ opacity: insideOpacity, transform: [{ translateY: insideShift }] }}>
-          <View style={styles.statusRow}>
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <View>
-                <Text style={styles.statusTitle}>EN EL BOX</Text>
-                <Text style={styles.statusSince}>Entrada {formatTime(attendance.since)}</Text>
+          {/* Check-in: registra tu visita al llegar (pronto via código QR) */}
+          {inGym ? (
+            <Animated.View style={{ opacity: insideOpacity, transform: [{ translateY: insideShift }] }}>
+              <View style={styles.statusRow}>
+                <View style={styles.liveRow}>
+                  <View style={styles.liveDot} />
+                  <View>
+                    <Text style={styles.statusTitle}>EN EL BOX</Text>
+                    <Text style={styles.statusSince}>Entrada {formatTime(attendance.since)}</Text>
+                  </View>
+                </View>
+                <Pressable onPress={checkOut} disabled={checking} style={styles.checkoutBtn}>
+                  <Ionicons name="exit-outline" size={15} color={colors.textPrimary} />
+                  <Text style={styles.checkoutText}>Salida</Text>
+                </Pressable>
               </View>
+            </Animated.View>
+          ) : (
+            <View style={styles.checkinCard}>
+              <View style={styles.checkinIconWrap}>
+                <Ionicons name="barbell-outline" size={20} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.checkinTitle}>¿Ya llegaste al box?</Text>
+                <Text style={styles.checkinSub}>Marca tu entrada para registrar tu visita</Text>
+              </View>
+              <Animated.View style={{ transform: [{ scale: heroScale }] }}>
+                <Pressable onPress={checkIn} disabled={checking} style={styles.checkinBtn}>
+                  {checking
+                    ? <ActivityIndicator size="small" color="#05230b" />
+                    : <Text style={styles.checkinBtnText}>ENTRAR</Text>}
+                </Pressable>
+              </Animated.View>
             </View>
-            <Pressable onPress={checkOut} disabled={checking} style={styles.checkoutBtn}>
-              <Ionicons name="exit-outline" size={15} color={colors.textPrimary} />
-              <Text style={styles.checkoutText}>Salida</Text>
-            </Pressable>
-          </View>
+          )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
           {wodEmpty && (
@@ -409,7 +394,11 @@ export default function HomeScreen({ user, onUserUpdate }) {
               <WodComments workout={workout} user={user} />
             </>
           )}
-        </Animated.View>
+
+          <View style={{ marginTop: spacing.lg }}>
+            <GymInfo info={gymInfo} />
+          </View>
+        </>
       )}
     </ScrollView>
   );
@@ -465,42 +454,37 @@ const styles = StyleSheet.create({
   pendingText: { color: colors.textPrimary, fontSize: 14, lineHeight: 21 },
   pendingHint: { color: colors.textMuted, fontSize: 12, marginTop: spacing.md },
 
-  /* Puerta de entrada */
-  gate: { alignItems: 'center', paddingVertical: spacing.xl, marginBottom: spacing.md },
-  heroGlow: {
-    position: 'absolute',
-    top: spacing.xl - 14,
-    width: 178,
-    height: 178,
-    borderRadius: 89,
-    backgroundColor: colors.accent
-  },
-  heroBtn: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6
-  },
-  heroBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 22, letterSpacing: 2, textAlign: 'center', lineHeight: 24 },
-  gateHint: { color: colors.textMuted, fontSize: 13, marginTop: spacing.lg, textAlign: 'center' },
-
-  lockedCard: {
+  /* Check-in: tarjeta propia (pronto con código QR) */
+  checkinCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderStyle: 'dashed',
     borderRadius: radii.md,
-    padding: spacing.lg,
+    padding: spacing.md,
     marginBottom: spacing.lg
   },
-  lockedLabel: { color: colors.textMuted, fontSize: 10, letterSpacing: 2, marginBottom: 2 },
-  lockedTitle: { color: colors.textPrimary, fontFamily: type.display, fontSize: 24, letterSpacing: 1 },
+  checkinIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(70,226,42,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  checkinTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  checkinSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  checkinBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minWidth: 84,
+    alignItems: 'center'
+  },
+  checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 16, letterSpacing: 1.5 },
 
   /* Dentro del box */
   statusRow: {
