@@ -41,6 +41,38 @@ function EmptyState({ icon, children }) {
   );
 }
 
+// Minimal inline icon set (stroke style, lucide-like) for the sidebar nav.
+const ICON_PATHS = {
+  activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
+  chart: <><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></>,
+  users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  clipboard: <><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></>,
+  home: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
+  clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+  logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
+};
+
+function Icon({ name }) {
+  return (
+    <svg
+      viewBox="0 0 24 24" width="17" height="17" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
+const NAV_ITEMS = [
+  { id: 'gym', label: 'En el gym', icon: 'activity' },
+  { id: 'stats', label: 'Estadísticas', icon: 'chart' },
+  { id: 'athletes', label: 'Atletas', icon: 'users' },
+  { id: 'wod', label: 'WOD del día', icon: 'clipboard' },
+  { id: 'info', label: 'Gimnasio', icon: 'home' },
+  { id: 'logs', label: 'Accesos', icon: 'clock' },
+];
+
 // Badge for an access-history event.
 function eventBadge(event) {
   if (event === 'register') return <span className="pill pill-yellow">cuenta nueva ✦</span>;
@@ -402,25 +434,34 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <aside className="sidebar">
         <div className="brand-inline">
           <span className="brand-name sm">INRAGE</span>
           <span className="brand-tag sm">ADMIN PANEL</span>
         </div>
-        <nav className="tabs">
-          <button className={tab === 'gym' ? 'tab active' : 'tab'} onClick={() => setTab('gym')}>
-            En el gym{active.length > 0 && <span className="tab-count">{active.length}</span>}
-          </button>
-          <button className={tab === 'stats' ? 'tab active' : 'tab'} onClick={() => setTab('stats')}>Estadísticas</button>
-          <button className={tab === 'athletes' ? 'tab active' : 'tab'} onClick={() => setTab('athletes')}>
-            Atletas{pendingCount > 0 && <span className="tab-count warn" title={`${pendingCount} por aprobar`}>{pendingCount}</span>}
-          </button>
-          <button className={tab === 'wod' ? 'tab active' : 'tab'} onClick={() => setTab('wod')}>WOD del día</button>
-          <button className={tab === 'info' ? 'tab active' : 'tab'} onClick={() => setTab('info')}>Gimnasio</button>
-          <button className={tab === 'logs' ? 'tab active' : 'tab'} onClick={() => setTab('logs')}>Accesos</button>
+        <nav className="nav">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              className={tab === item.id ? 'nav-item active' : 'nav-item'}
+              onClick={() => setTab(item.id)}
+            >
+              <Icon name={item.icon} />
+              <span className="nav-label">{item.label}</span>
+              {item.id === 'gym' && active.length > 0 && <span className="tab-count">{active.length}</span>}
+              {item.id === 'athletes' && pendingCount > 0 && (
+                <span className="tab-count warn" title={`${pendingCount} por aprobar`}>{pendingCount}</span>
+              )}
+            </button>
+          ))}
         </nav>
-        <button className="btn-ghost" onClick={handleLogout}>Salir</button>
-      </header>
+        <button className="nav-item logout" onClick={handleLogout}>
+          <Icon name="logout" />
+          <span className="nav-label">Salir</span>
+        </button>
+      </aside>
+
+      <main className="content" key={tab}>
 
       {/* ── EN EL GYM (LIVE) TAB ── */}
       {tab === 'gym' && (
@@ -745,6 +786,7 @@ export default function App() {
           })}
         </section>
       )}
+      </main>
     </div>
   );
 }
