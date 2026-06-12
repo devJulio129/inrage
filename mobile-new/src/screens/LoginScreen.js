@@ -280,10 +280,9 @@ const styles = StyleSheet.create({
   brand: { alignItems: 'center', marginBottom: spacing.xl },
   brandName: {
     color: colors.accent,
-    fontSize: 52,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 3,
+    fontFamily: type.display,
+    fontSize: 68,
+    letterSpacing: 4,
     textShadowColor: 'rgba(70,226,42,0.7)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 22

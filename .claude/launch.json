@@ -14,6 +14,13 @@
       "runtimeArgs": ["serve-web.js"],
       "cwd": "mobile-new",
       "port": 8090
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--web", "--port", "8083"],
+      "cwd": "mobile-new",
+      "port": 8083
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { Workout } from '../models/Workout.js';
+import { WodComment } from '../models/WodComment.js';
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -102,7 +103,70 @@ export async function deleteWorkout(req, res, next) {
   try {
     const workout = await Workout.findByIdAndDelete(req.params.id);
     if (!workout) return res.status(404).json({ error: 'WOD no encontrado' });
+    await WodComment.deleteMany({ workout: workout._id });
     res.json({ message: 'WOD eliminado' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── WOD comments ──────────────────────────────────────────────────
+// The avatar travels with each comment so the app can show the member's
+// photo without extra round-trips. Avatars are stored small (≤256px).
+
+// GET /api/workouts/:id/comments
+export async function listComments(req, res, next) {
+  try {
+    const comments = await WodComment.find({ workout: req.params.id })
+      .sort({ createdAt: 1 })
+      .populate('member', 'name avatar')
+      .lean();
+    res.json(comments);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/workouts/:id/comments  — body: { text }
+export async function addComment(req, res, next) {
+  try {
+    // Pending accounts can't see the WOD, so they can't comment on it either.
+    if (req.user.role !== 'admin' && req.user.status === 'pending') {
+      return res.status(403).json({ error: 'Tu cuenta está pendiente de aprobación.' });
+    }
+
+    const text = (req.body.text || '').trim();
+    if (!text) return res.status(400).json({ error: 'El comentario no puede estar vacío' });
+    if (text.length > 500) return res.status(400).json({ error: 'Máximo 500 caracteres' });
+
+    const workout = await Workout.findById(req.params.id);
+    if (!workout) return res.status(404).json({ error: 'WOD no encontrado' });
+
+    const comment = await WodComment.create({
+      workout: workout._id,
+      member: req.user._id,
+      text
+    });
+    const populated = await comment.populate('member', 'name avatar');
+    res.status(201).json(populated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/workouts/:id/comments/:commentId — own comment, or admin.
+export async function deleteComment(req, res, next) {
+  try {
+    const comment = await WodComment.findById(req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comentario no encontrado' });
+
+    const isOwner = String(comment.member) === String(req.user._id);
+    if (!isOwner && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo puedes borrar tus comentarios' });
+    }
+
+    await comment.deleteOne();
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

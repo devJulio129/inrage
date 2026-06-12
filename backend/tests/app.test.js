@@ -44,6 +44,8 @@ describe('protected routes', () => {
     ['GET', '/api/members'],
     ['GET', '/api/auth/me'],
     ['GET', '/api/workouts/today'],
+    ['GET', '/api/workouts/000000000000000000000000/comments'],
+    ['POST', '/api/workouts/000000000000000000000000/comments'],
     ['GET', '/api/attendances/me'],
     ['GET', '/api/prs'],
     ['GET', '/api/login-logs']

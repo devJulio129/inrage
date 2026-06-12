@@ -22,7 +22,8 @@ export function createApp() {
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
     : true;
   app.use(cors({ origin: corsOrigins }));
-  app.use(express.json());
+  // 10mb: profile photos travel as base64 data-URIs (default 100kb rejects them).
+  app.use(express.json({ limit: '10mb' }));
   app.use(passport.initialize());
 
   app.get('/health', (_req, res) => {

@@ -4,7 +4,8 @@ import {
   ActivityIndicator, TextInput, Image, Alert
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, radii } from '../theme';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 
 const MOVEMENTS = [
@@ -72,13 +73,19 @@ export default function ProfileScreen({ user, onLogout }) {
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.4,
-      base64: true,
+      quality: 0.9,
     });
-    if (result.canceled || !result.assets?.[0]?.base64) return;
-    const dataUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+    if (result.canceled || !result.assets?.[0]?.uri) return;
     setAvatarUploading(true);
     try {
+      // Reduce a 256px antes de subir: una foto de cámara en base64 pesa
+      // varios MB y el servidor la rechazaba. Así viaja en ~30-60 KB.
+      const small = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 256 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+      const dataUri = `data:image/jpeg;base64,${small.base64}`;
       await api.updateAvatar(dataUri);
       setProfile(prev => ({ ...prev, avatar: dataUri }));
     } catch {
@@ -249,7 +256,7 @@ const styles = StyleSheet.create({
   },
   avatarBadgeText: { color: colors.textPrimary, fontSize: 13 },
 
-  name: { color: colors.textPrimary, fontSize: 24, fontWeight: '800' },
+  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 32, letterSpacing: 1 },
   email: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
 
   statusChip: {
@@ -275,7 +282,7 @@ const styles = StyleSheet.create({
   rowValue: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
 
   sectionTitle: {
-    color: colors.textPrimary, fontSize: 18, fontWeight: '800',
+    color: colors.textPrimary, fontFamily: type.display, fontSize: 24, letterSpacing: 1,
     alignSelf: 'flex-start', marginBottom: spacing.md
   },
   prGroup: {

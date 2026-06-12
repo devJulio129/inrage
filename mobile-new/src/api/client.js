@@ -120,6 +120,16 @@ export const api = {
 
   getTodayWorkout: () => request('/api/workouts/today'),
 
+  // WOD comments
+  getWodComments: (workoutId) => request(`/api/workouts/${workoutId}/comments`),
+  addWodComment: (workoutId, text) =>
+    request(`/api/workouts/${workoutId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    }),
+  deleteWodComment: (workoutId, commentId) =>
+    request(`/api/workouts/${workoutId}/comments/${commentId}`, { method: 'DELETE' }),
+
   getGymInfo: () => request('/api/gym-info'),
 
   // Gym presence

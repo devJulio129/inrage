@@ -33,5 +33,7 @@ import { Platform } from 'react-native';
 export const type = {
   // System mono real en cada plataforma (Courier no existe en Android).
   mono: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
-  sans: 'System'
+  sans: 'System',
+  // Fuente display de la marca (misma que el panel admin). Cargada en App.js.
+  display: 'BebasNeue_400Regular'
 };

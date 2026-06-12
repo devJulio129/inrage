@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import HomeScreen from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 
 const TABS = [
-  { key: 'home', label: 'Inicio', glyph: '⌂' },
-  { key: 'profile', label: 'Perfil', glyph: '◍' }
+  { key: 'home', label: 'Inicio', icon: 'barbell-outline', iconActive: 'barbell' },
+  { key: 'profile', label: 'Perfil', icon: 'person-outline', iconActive: 'person' }
 ];
 
 export default function MainApp({ user, onUserUpdate, onLogout }) {
@@ -27,8 +28,14 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
           const active = tab === t.key;
           return (
             <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
-              <Text style={[styles.glyph, active && styles.glyphActive]}>{t.glyph}</Text>
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
+              <View style={[styles.tabPill, active && styles.tabPillActive]}>
+                <Ionicons
+                  name={active ? t.iconActive : t.icon}
+                  size={20}
+                  color={active ? colors.accent : colors.textMuted}
+                />
+                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
+              </View>
             </Pressable>
           );
         })}
@@ -46,11 +53,19 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.surfaceAlt,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.md
   },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  glyph: { fontSize: 22, color: colors.textMuted, lineHeight: 26 },
-  glyphActive: { color: colors.accent, textShadowColor: colors.accent, textShadowRadius: 12 },
-  tabLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2, letterSpacing: 0.5 },
-  tabLabelActive: { color: colors.accent, fontWeight: '700' }
+  tab: { flex: 1, alignItems: 'center' },
+  tabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 22
+  },
+  tabPillActive: { backgroundColor: 'rgba(70,226,42,0.12)' },
+  tabLabel: { fontSize: 12, color: colors.textMuted, letterSpacing: 0.5, fontWeight: '600' },
+  tabLabelActive: { color: colors.accent, fontWeight: '800' }
 });
