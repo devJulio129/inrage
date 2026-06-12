@@ -87,9 +87,14 @@ router.post('/google', async (req, res, next) => {
     if (!r.ok) return res.status(401).json({ error: 'Token de Google inválido' });
     const payload = await r.json();
 
-    // If a client ID is configured, ensure the token was issued for our app.
-    if (process.env.GOOGLE_CLIENT_ID && payload.aud !== process.env.GOOGLE_CLIENT_ID) {
-      return res.status(401).json({ error: 'Token de Google no autorizado para esta app' });
+    // If client IDs are configured, ensure the token was issued for our app.
+    // Comma-separated list: the Android, iOS and Web OAuth clients each have
+    // their own ID and the token's `aud` matches the one the app used.
+    if (process.env.GOOGLE_CLIENT_ID) {
+      const allowed = process.env.GOOGLE_CLIENT_ID.split(',').map((s) => s.trim()).filter(Boolean);
+      if (!allowed.includes(payload.aud)) {
+        return res.status(401).json({ error: 'Token de Google no autorizado para esta app' });
+      }
     }
 
     const email = (payload.email || '').toLowerCase();
