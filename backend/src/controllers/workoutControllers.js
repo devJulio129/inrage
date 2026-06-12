@@ -39,6 +39,28 @@ export async function getTodayWorkout(req, res, next) {
   }
 }
 
+// GET /api/workouts/recent  (members) — past WODs (excluding today) so
+// athletes can review previous sessions and their comments.
+export async function getRecentWorkouts(req, res, next) {
+  try {
+    if (req.user.role !== 'admin' && req.user.status === 'pending') {
+      return res.status(403).json({
+        error: 'pending_approval',
+        message: 'Tu cuenta está pendiente de aprobación por el gimnasio.'
+      });
+    }
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const workouts = await Workout.find({
+      date: { $gte: since, $lt: startOfDay() }
+    })
+      .sort({ date: -1 })
+      .limit(10);
+    res.json(workouts);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/workouts  (admin) — recent workouts
 export async function listWorkouts(req, res, next) {
   try {

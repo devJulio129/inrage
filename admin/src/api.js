@@ -56,6 +56,11 @@ export const api = {
     deleteWorkout: (id) =>
         request(`/api/workouts/${id}`, { method: 'DELETE' }),
 
+    getWodComments: (id) => request(`/api/workouts/${id}/comments`),
+
+    deleteWodComment: (wodId, commentId) =>
+        request(`/api/workouts/${wodId}/comments/${commentId}`, { method: 'DELETE' }),
+
     getStats: () => request('/api/stats'),
 
     getActiveAttendance: () => request('/api/attendances/active'),

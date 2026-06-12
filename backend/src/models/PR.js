@@ -4,7 +4,8 @@ const prSchema = new mongoose.Schema({
   member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
   movement: { type: String, required: true, trim: true },
   value: { type: Number, required: true },
-  unit: { type: String, enum: ['kg', 'lb', 'reps'], default: 'kg' },
+  // 'time' = segundos (p. ej. récord de 400 m); el cliente lo muestra mm:ss.
+  unit: { type: String, enum: ['kg', 'lb', 'reps', 'time'], default: 'kg' },
   setAt: { type: Date, default: Date.now },
 });
 

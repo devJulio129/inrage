@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import dns from 'node:dns/promises';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Member } from '../models/Member.js';
@@ -6,6 +7,24 @@ import { LoginLog } from '../models/LoginLog.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = Router();
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Checks that the email's domain exists and can receive mail (MX lookup) —
+// catches typos like "gmial.com" WITHOUT sending anything to the address.
+// Fails open on our own network errors so signups never break by accident.
+async function emailDomainExists(email) {
+  const domain = email.split('@')[1];
+  try {
+    const mx = await dns.resolveMx(domain);
+    if (mx.length > 0) return true;
+    const a = await dns.resolve(domain).catch(() => []);
+    return a.length > 0;
+  } catch (err) {
+    if (err.code === 'ENOTFOUND' || err.code === 'ENODATA') return false;
+    return true;
+  }
+}
 
 // Records an access event (login / register / google) so it shows up in the
 // admin "Accesos" tab. Fire-and-forget — never blocks the auth response.
@@ -23,7 +42,15 @@ function logAccess(member, event, req) {
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password, phone, birthDate, gender } = req.body;
+    const { name, password, phone, birthDate, gender } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
+
+    if (!EMAIL_RE.test(email)) {
+      return res.status(400).json({ error: 'Escribe un correo válido' });
+    }
+    if (!(await emailDomainExists(email))) {
+      return res.status(400).json({ error: 'El dominio del correo no existe — revisa que esté bien escrito' });
+    }
 
     const existing = await Member.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
@@ -51,9 +78,11 @@ router.post('/register', async (req, res, next) => {
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
 
-    const member = await Member.findOne({ email });
+    // Legacy accounts may have been stored with uppercase letters.
+    const member = await Member.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
     if (!member) return res.status(404).json({ error: 'Email not found' });
 
     const match = await bcrypt.compare(password, member.password);

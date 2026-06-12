@@ -119,6 +119,14 @@ export const api = {
   me: () => request('/api/auth/me'),
 
   getTodayWorkout: () => request('/api/workouts/today'),
+  getRecentWorkouts: () => request('/api/workouts/recent'),
+
+  // Perfil (el propio miembro puede actualizar sus datos)
+  updateMember: (id, data) =>
+    request(`/api/members/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
 
   // WOD comments
   getWodComments: (workoutId) => request(`/api/workouts/${workoutId}/comments`),

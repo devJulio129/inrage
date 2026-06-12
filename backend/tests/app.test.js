@@ -67,6 +67,17 @@ describe('protected routes', () => {
 });
 
 describe('auth input validation', () => {
+  test('POST /api/auth/register with malformed email responds 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'X', email: 'no-es-un-correo', password: 'secret123' })
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.equal(body.error, 'Escribe un correo válido');
+  });
+
   test('POST /api/auth/google without idToken responds 400', async () => {
     const res = await fetch(`${baseUrl}/api/auth/google`, {
       method: 'POST',

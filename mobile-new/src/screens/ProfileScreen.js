@@ -13,6 +13,7 @@ const MOVEMENTS = [
     category: 'Levantamiento Olímpico', items: [
       { key: 'snatch', label: 'Arrancada', unit: 'kg' },
       { key: 'clean_and_jerk', label: 'Envión', unit: 'kg' },
+      { key: 'power_clean', label: 'Power Clean', unit: 'kg' },
     ]
   },
   {
@@ -32,7 +33,29 @@ const MOVEMENTS = [
       { key: 'toes_to_bar', label: 'Toes to Bar', unit: 'reps' },
     ]
   },
+  {
+    category: 'Cardio', items: [
+      { key: 'run_400m', label: '400 m carrera', unit: 'time' },
+    ]
+  },
 ];
+
+// 'time' PRs viajan en segundos; el atleta los escribe y ve como mm:ss.
+export function parseTimeToSecs(t) {
+  const m = String(t).trim().match(/^(\d{1,2}):([0-5]?\d)$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const n = parseFloat(t);
+  return Number.isNaN(n) || n <= 0 ? null : n;
+}
+export function fmtSecs(s) {
+  const mins = Math.floor(s / 60);
+  const secs = Math.round(s % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+export function fmtPR(pr) {
+  if (!pr) return '—';
+  return pr.unit === 'time' ? `${fmtSecs(pr.value)} min` : `${pr.value} ${pr.unit}`;
+}
 
 export default function ProfileScreen({ user, onLogout }) {
   const [profile, setProfile] = useState(user);
@@ -95,15 +118,17 @@ export default function ProfileScreen({ user, onLogout }) {
     }
   }
 
-  function startEdit(key, currentValue) {
+  function startEdit(key, currentValue, unit) {
     setEditingKey(key);
-    setEditValue(currentValue != null ? String(currentValue) : '');
+    if (currentValue == null) return setEditValue('');
+    setEditValue(unit === 'time' ? fmtSecs(currentValue) : String(currentValue));
   }
 
   async function saveEdit(key, unit) {
-    const num = parseFloat(editValue);
     setEditingKey(null);
-    if (!editValue.trim() || isNaN(num) || num <= 0) return;
+    if (!editValue.trim()) return;
+    const num = unit === 'time' ? parseTimeToSecs(editValue) : parseFloat(editValue);
+    if (num == null || isNaN(num) || num <= 0) return;
     try {
       const updated = await api.upsertPR(key, num, unit);
       setPrs(prev => ({ ...prev, [key]: { value: updated.value, unit: updated.unit } }));
@@ -181,9 +206,9 @@ export default function ProfileScreen({ user, onLogout }) {
                           style={styles.prInput}
                           value={editValue}
                           onChangeText={setEditValue}
-                          keyboardType="numeric"
+                          keyboardType={unit === 'time' ? 'numbers-and-punctuation' : 'numeric'}
                           autoFocus
-                          placeholder={unit === 'reps' ? 'reps' : 'kg'}
+                          placeholder={unit === 'time' ? 'mm:ss' : unit === 'reps' ? 'reps' : 'kg o lb'}
                           placeholderTextColor={colors.textMuted}
                           onSubmitEditing={() => saveEdit(key, unit)}
                           returnKeyType="done"
@@ -196,9 +221,9 @@ export default function ProfileScreen({ user, onLogout }) {
                         </Pressable>
                       </View>
                     ) : (
-                      <Pressable style={styles.prValueRow} onPress={() => startEdit(key, pr?.value)}>
+                      <Pressable style={styles.prValueRow} onPress={() => startEdit(key, pr?.value, unit)}>
                         <Text style={[styles.prValue, !pr && { color: colors.textMuted }]}>
-                          {pr ? `${pr.value} ${pr.unit}` : '—'}
+                          {fmtPR(pr)}
                         </Text>
                         <Text style={styles.prEditIcon}>✎</Text>
                       </Pressable>

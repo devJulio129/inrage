@@ -22,6 +22,49 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Comentarios de un WOD (carga al expandir). El admin puede borrar cualquiera.
+function WodCommentsAdmin({ wodId }) {
+  const [comments, setComments] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.getWodComments(wodId)
+      .then(setComments)
+      .catch(err => setError(err.message));
+  }, [wodId]);
+
+  function remove(c) {
+    if (!window.confirm(`¿Borrar el comentario de ${c.member?.name || 'atleta'}?`)) return;
+    api.deleteWodComment(wodId, c._id)
+      .then(() => setComments(prev => prev.filter(x => x._id !== c._id)))
+      .catch(err => alert('Error: ' + err.message));
+  }
+
+  if (error) return <p className="error">Error: {error}</p>;
+  if (!comments) return <p className="muted" style={{ fontSize: 13 }}>Cargando comentarios…</p>;
+  if (comments.length === 0) return <p className="muted" style={{ fontSize: 13 }}>Sin comentarios en este WOD.</p>;
+
+  return (
+    <div className="wod-comments">
+      {comments.map(c => (
+        <div key={c._id} className="wod-comment">
+          {c.member?.avatar
+            ? <img className="wc-avatar" src={c.member.avatar} alt="" />
+            : <span className="wc-avatar wc-initials">{(c.member?.name || 'A')[0]}</span>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className="wc-meta">
+              <strong>{c.member?.name || 'Atleta'}</strong>
+              <span className="muted"> · {timeAgo(c.createdAt)}</span>
+            </p>
+            <p className="wc-text">{c.text}</p>
+          </div>
+          <button className="wc-delete" title="Borrar comentario" onClick={() => remove(c)}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // "hace 5 min" — relative time for logs and member cards.
 function timeAgo(date) {
   const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60_000);
@@ -127,6 +170,7 @@ export default function App() {
   const [gymMsg, setGymMsg] = useState(null);
 
   // WOD
+  const [openCommentsId, setOpenCommentsId] = useState(null);
   const [wods, setWods] = useState([]);
   const [wodsLoading, setWodsLoading] = useState(false);
   const [wodsError, setWodsError] = useState(null);
@@ -667,7 +711,11 @@ export default function App() {
             <h3>{wodForm.date && wodForm.date !== todayStr() ? 'Editar WOD' : 'Publicar WOD de hoy'}</h3>
             <form onSubmit={handleWodSubmit} className="stack">
               <input name="title" placeholder="Título (p. ej. FRAN)" value={wodForm.title} onChange={handleWodChange} required />
-              <textarea name="description" placeholder="Descripción del entrenamiento…" rows={6} value={wodForm.description} onChange={handleWodChange} required />
+              <textarea
+                name="description"
+                placeholder={'Descripción del entrenamiento…\n\nTip: agrega un porcentaje y la app calcula la dosis de cada atleta con sus PRs:\n  40 pull ups (50%)\n  30 power cleans (55%)\n  200 mts run (75%)'}
+                rows={8} value={wodForm.description} onChange={handleWodChange} required
+              />
               <label className="lbl">Fecha (vacío = hoy)</label>
               <input name="date" type="date" value={wodForm.date} onChange={handleWodChange} />
               <div className="row">
@@ -688,10 +736,18 @@ export default function App() {
           )}
           {!wodsLoading && wods.map(w => (
             <div key={w._id} className="card wod-card">
-              <div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p className="wod-date">{new Date(w.date).toLocaleDateString()}</p>
                 <h3>{w.title}</h3>
                 <pre className="wod-desc">{w.description}</pre>
+                <button
+                  className="btn-ghost btn-sm"
+                  style={{ marginTop: 10 }}
+                  onClick={() => setOpenCommentsId(openCommentsId === w._id ? null : w._id)}
+                >
+                  💬 {openCommentsId === w._id ? 'Ocultar comentarios' : 'Ver comentarios'}
+                </button>
+                {openCommentsId === w._id && <WodCommentsAdmin wodId={w._id} />}
               </div>
               <div className="actions">
                 <button className="btn-ghost" onClick={() => editWod(w)}>Editar</button>

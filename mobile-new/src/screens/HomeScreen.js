@@ -18,6 +18,112 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import GymInfo from '../components/GymInfo';
+import { fmtSecs } from './ProfileScreen';
+
+// ── "TU WOD": prescripción personalizada a partir de los PRs ─────────
+// El coach escribe líneas con porcentaje — "30 power cleans (55%)" — y la
+// app calcula la dosis de cada atleta con SUS récords.
+const PR_LABELS = {
+  pull_ups: 'Pull-ups', muscle_ups: 'Muscle-ups', handstand_push_ups: 'HSPU',
+  toes_to_bar: 'Toes to Bar', snatch: 'Arrancada', clean_and_jerk: 'Envión',
+  power_clean: 'Power Clean', front_squat: 'Sentadilla Frontal', back_squat: 'Sentadilla',
+  deadlift: 'Peso Muerto', bench_press: 'Press Banca', overhead_press: 'Press Militar',
+  run_400m: '400 m carrera'
+};
+
+function matchMovement(text) {
+  const t = text.toLowerCase();
+  if (/(pull.?up|dominada)/.test(t)) return { key: 'pull_ups', kind: 'reps' };
+  if (/muscle.?up/.test(t)) return { key: 'muscle_ups', kind: 'reps' };
+  if (/(hspu|handstand)/.test(t)) return { key: 'handstand_push_ups', kind: 'reps' };
+  if (/(toes.?to.?bar|t2b)/.test(t)) return { key: 'toes_to_bar', kind: 'reps' };
+  if (/snatch|arrancada/.test(t)) return { key: 'snatch', kind: 'weight' };
+  if (/(clean.*jerk|envi[oó]n)/.test(t)) return { key: 'clean_and_jerk', kind: 'weight' };
+  if (/clean/.test(t)) return { key: 'power_clean', kind: 'weight' };
+  if (/(front squat|sentadilla frontal)/.test(t)) return { key: 'front_squat', kind: 'weight' };
+  if (/(squat|sentadilla)/.test(t)) return { key: 'back_squat', kind: 'weight' };
+  if (/(deadlift|peso muerto)/.test(t)) return { key: 'deadlift', kind: 'weight' };
+  if (/(bench|banca)/.test(t)) return { key: 'bench_press', kind: 'weight' };
+  if (/(overhead|militar|ohp)/.test(t)) return { key: 'overhead_press', kind: 'weight' };
+  if (/(run|carrera|corr|mts|metros|\bm\b)/.test(t)) return { key: 'run_400m', kind: 'run' };
+  return null;
+}
+
+function rpeForPct(pct) {
+  if (pct >= 90) return 'RPE 9–10';
+  if (pct >= 80) return 'RPE 8–9';
+  if (pct >= 70) return 'RPE 7–8';
+  if (pct >= 60) return 'RPE 6–7';
+  return 'RPE 5–6';
+}
+
+function personalizeLine(line, prs) {
+  const m = line.match(/^\s*(\d+(?:\.\d+)?)\s*(.+?)\s*\(\s*(\d{1,3})\s*%\s*\)/);
+  if (!m) return null;
+  const qty = parseFloat(m[1]);
+  const pct = Number(m[3]);
+  const mov = matchMovement(m[2]);
+  if (!mov || !qty || !pct) return null;
+
+  const pr = prs[mov.key];
+  const base = { line: line.trim(), key: mov.key };
+  if (!pr) return { ...base, missing: PR_LABELS[mov.key] || m[2] };
+
+  if (mov.kind === 'reps') {
+    // Fracción del máximo que aguanta por serie → series parejas.
+    const chunk = Math.max(1, Math.floor((pr.value * pct) / 100));
+    const sets = Math.max(1, Math.ceil(qty / chunk));
+    const perSet = Math.ceil(qty / sets);
+    return {
+      ...base,
+      rx: sets === 1 ? `${qty} de corrido` : `${sets} series de ~${perSet}`,
+      hint: `tu máx: ${pr.value}`
+    };
+  }
+  if (mov.kind === 'weight') {
+    // Redondeo a discos reales: 5 lb o 2.5 kg.
+    const raw = (pr.value * pct) / 100;
+    const rounded = pr.unit === 'lb' ? Math.round(raw / 5) * 5 : Math.round(raw / 2.5) * 2.5;
+    return { ...base, rx: `${rounded} ${pr.unit}`, hint: `PR: ${pr.value} ${pr.unit}` };
+  }
+  if (mov.kind === 'run') {
+    // Ritmo del PR de 400 m escalado a la distancia y a la intensidad.
+    const target = (pr.value * (qty / 400)) / (pct / 100);
+    return { ...base, rx: `≈ ${fmtSecs(target)} · ${rpeForPct(pct)}`, hint: `400 m: ${fmtSecs(pr.value)}` };
+  }
+  return null;
+}
+
+function PersonalizedWod({ description, prs }) {
+  const items = (description || '')
+    .split('\n')
+    .map((l) => personalizeLine(l, prs))
+    .filter(Boolean);
+  if (items.length === 0) return null;
+  return (
+    <View style={styles.persoCard}>
+      <View style={styles.persoHeader}>
+        <Ionicons name="speedometer-outline" size={15} color={colors.accent} />
+        <Text style={styles.persoTitle}>TU WOD</Text>
+      </View>
+      {items.map((it, i) => (
+        <View key={i} style={styles.persoRow}>
+          <Text style={styles.persoLine}>{it.line}</Text>
+          {it.missing ? (
+            <Text style={styles.persoMissing}>
+              Registra tu PR de {it.missing} en tu perfil para ver tu dosis
+            </Text>
+          ) : (
+            <Text style={styles.persoRx}>
+              → {it.rx} <Text style={styles.persoHint}>({it.hint})</Text>
+            </Text>
+          )}
+        </View>
+      ))}
+      <Text style={styles.persoFoot}>Calculado con tus récords personales 🎯</Text>
+    </View>
+  );
+}
 
 // Cross-platform confirm (Alert.alert is a no-op on react-native-web).
 function confirmAsync(title, msg, action = 'Eliminar') {
@@ -180,6 +286,9 @@ export default function HomeScreen({ user, onUserUpdate }) {
   const [checkinError, setCheckinError] = useState(null);
 
   const [gymInfo, setGymInfo] = useState(null);
+  const [prs, setPrs] = useState({});
+  const [recent, setRecent] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
 
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
   const inGym = Boolean(attendance?.inGym);
@@ -237,6 +346,15 @@ export default function HomeScreen({ user, onUserUpdate }) {
       }
       try {
         setAttendance(await api.myAttendance());
+      } catch {}
+      try {
+        const prList = await api.getPRs();
+        const map = {};
+        for (const pr of prList || []) map[pr.movement] = { value: pr.value, unit: pr.unit };
+        setPrs(map);
+      } catch {}
+      try {
+        setRecent(await api.getRecentWorkouts());
       } catch {}
     }
 
@@ -391,8 +509,43 @@ export default function HomeScreen({ user, onUserUpdate }) {
                 <View style={styles.divider} />
                 <Text style={styles.description}>{workout.description}</Text>
               </View>
+              <PersonalizedWod description={workout.description} prs={prs} />
               <WodComments workout={workout} user={user} />
             </>
+          )}
+
+          {recent.length > 0 && (
+            <View style={{ marginTop: spacing.xl }}>
+              <Text style={styles.histTitle}>WODS ANTERIORES</Text>
+              {recent.map((w) => {
+                const open = expandedId === w._id;
+                return (
+                  <View key={w._id} style={styles.histCard}>
+                    <Pressable
+                      style={styles.histHead}
+                      onPress={() => setExpandedId(open ? null : w._id)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.histDate}>{formatDate(new Date(w.date))}</Text>
+                        <Text style={styles.histName}>{w.title}</Text>
+                      </View>
+                      <Ionicons
+                        name={open ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color={colors.textMuted}
+                      />
+                    </Pressable>
+                    {open && (
+                      <View style={styles.histBody}>
+                        <Text style={styles.description}>{w.description}</Text>
+                        <PersonalizedWod description={w.description} prs={prs} />
+                        <WodComments workout={w} user={user} />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           )}
 
           <View style={{ marginTop: spacing.lg }}>
@@ -526,6 +679,52 @@ const styles = StyleSheet.create({
   errorTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '600', marginBottom: spacing.sm },
   errorText: { color: colors.textMuted, fontFamily: type.mono, fontSize: 13 },
   errorHint: { color: colors.textMuted, fontSize: 12, marginTop: spacing.md, opacity: 0.7 },
+
+  /* TU WOD (personalizado) */
+  persoCard: {
+    backgroundColor: 'rgba(70,226,42,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.3)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginTop: spacing.md
+  },
+  persoHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: spacing.sm },
+  persoTitle: { color: colors.accent, fontFamily: type.display, fontSize: 18, letterSpacing: 2 },
+  persoRow: { marginBottom: spacing.sm + 2 },
+  persoLine: { color: colors.textMuted, fontFamily: type.mono, fontSize: 12 },
+  persoRx: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginTop: 2 },
+  persoHint: { color: colors.textMuted, fontSize: 12, fontWeight: '400' },
+  persoMissing: { color: '#F2C037', fontSize: 12, marginTop: 2 },
+  persoFoot: { color: colors.textMuted, fontSize: 11, marginTop: spacing.xs },
+
+  /* WODs anteriores */
+  histTitle: {
+    color: colors.textPrimary, fontFamily: type.display, fontSize: 22,
+    letterSpacing: 1.5, marginBottom: spacing.md
+  },
+  histCard: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    marginBottom: spacing.sm + 2,
+    overflow: 'hidden'
+  },
+  histHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md
+  },
+  histDate: { color: colors.accent, fontFamily: type.mono, fontSize: 10, letterSpacing: 1.5 },
+  histName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 20, letterSpacing: 1, marginTop: 2 },
+  histBody: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md
+  },
 
   /* Comentarios */
   commentsBlock: {
