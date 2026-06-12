@@ -32,7 +32,7 @@
       "apiUrl": "https://inrage-backend.onrender.com",
       "googleClientId": null,
       "googleIosClientId": null,
-      "googleAndroidClientId": null,
+      "googleAndroidClientId": "419989569431-0g1tagbp2hdhoaodb63sgovb45ddl1db.apps.googleusercontent.com",
       "eas": {
         "projectId": "58cc8f7c-59a5-4c3d-b0ec-2eddb40625c0"
       }

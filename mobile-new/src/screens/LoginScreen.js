@@ -14,9 +14,12 @@ import Constants from 'expo-constants';
 import { colors, spacing, radii, type } from '../theme';
 import { api, saveSession } from '../api/client';
 
-// Google only shows when a real client ID string is configured.
-const GOOGLE_ENABLED = typeof Constants.expoConfig?.extra?.googleClientId === 'string'
-  && Constants.expoConfig.extra.googleClientId.length > 0;
+// Google only shows when a real client ID string is configured (any platform).
+const GOOGLE_ENABLED = (() => {
+  const extra = Constants.expoConfig?.extra || {};
+  return [extra.googleClientId, extra.googleIosClientId, extra.googleAndroidClientId]
+    .some((v) => typeof v === 'string' && v.length > 0);
+})();
 
 export default function LoginScreen({ onAuthed, googleAuth }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
