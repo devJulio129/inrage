@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "InRage CrossFit",
-    "slug": "mobile-new",
+    "slug": "inrage",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "inrage",
@@ -32,17 +32,23 @@
       "apiUrl": "https://inrage-backend.onrender.com",
       "googleClientId": null,
       "googleIosClientId": null,
-      "googleAndroidClientId": null
+      "googleAndroidClientId": null,
+      "eas": {
+        "projectId": "58cc8f7c-59a5-4c3d-b0ec-2eddb40625c0"
+      }
     },
     "plugins": [
       "expo-web-browser",
       [
         "expo-image-picker",
         {
-          "photoLibraryUsageDescription": "Selecciona tu foto de perfil"
+          "photoLibraryUsageDescription": "Selecciona tu foto de perfil",
+          "microphonePermission": false,
+          "cameraPermission": false
         }
       ],
       "expo-font"
-    ]
+    ],
+    "owner": "schoolyardjujus"
   }
 }
