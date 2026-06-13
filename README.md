@@ -12,7 +12,7 @@ Built as the capstone project for the Circuit Stream / UBC Extended Learning Ful
 |-------|-----|
 | Backend API | https://inrage-backend.onrender.com ([health check](https://inrage-backend.onrender.com/health)) |
 | Admin panel | https://inrage-admin.onrender.com |
-| Mobile app (Android APK) | [Download from EAS](https://expo.dev/artifacts/eas/GTsOpxpdY8WhxuN0AZlNRGiHpXOWnkq-tde7Gxjn9e8.apk) — standalone build with Google Sign-In |
+| Mobile app (Android APK) | [Download from EAS](https://expo.dev/artifacts/eas/gEn6jQt81C7OAQEKH-rHA_er1ipi_Tf14rgPpRokB-g.apk) — standalone build with Google Sign-In |
 | Mobile app (dev) | Run with Expo Go — see [Quick start](#quick-start) |
 
 > Both services run on Render's free tier: the first request after a quiet period takes ~30–60 s to wake the service up. Hit the health check first.
