@@ -233,6 +233,38 @@ function youtubeId(url) {
   return m ? m[1] : null;
 }
 
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+// La próxima clase que el atleta ya reservó (la más cercana aún por venir;
+// tolera hasta 2 h pasadas por si la abre estando ya en la clase).
+function nextReservedClass(classes) {
+  const now = Date.now();
+  return (classes || [])
+    .filter((c) => c.mine)
+    .map((c) => {
+      const [yy, mm, dd] = classDay(c.date).split('-').map(Number);
+      const [h, m] = String(c.time).split(':').map(Number);
+      return { ...c, when: new Date(yy, mm - 1, dd, h || 0, m || 0).getTime() };
+    })
+    .filter((c) => c.when > now - 2 * 3600 * 1000)
+    .sort((a, b) => a.when - b.when)[0] || null;
+}
+
+// Encabezado de sección: barra de acento + título display (ritmo visual).
+function SectionHeader({ children }) {
+  return (
+    <View style={styles.sectionHeaderRow}>
+      <View style={styles.sectionAccent} />
+      <Text style={styles.sectionTitle}>{children}</Text>
+    </View>
+  );
+}
+
 // Foto del miembro (base64) o iniciales sobre el verde de la marca.
 function Avatar({ uri, name, size = 36 }) {
   const initials = (name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -389,12 +421,17 @@ function ClassesSection({ classes, onChanged }) {
   }
 
   const groups = groupClassesByDay(classes);
-  if (groups.length === 0) return null;
 
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <Text style={styles.sectionTitle}>RESERVA TU CLASE</Text>
+      <SectionHeader>RESERVA TU CLASE</SectionHeader>
       {error && <Text style={styles.commentsError}>{error}</Text>}
+      {groups.length === 0 && (
+        <View style={styles.emptyCard}>
+          <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
+          <Text style={styles.emptyText}>Aún no hay clases abiertas. Vuelve más tarde.</Text>
+        </View>
+      )}
       {groups.map(([day, list]) => (
         <View key={day}>
           <Text style={styles.dayHead}>{day}</Text>
@@ -468,7 +505,7 @@ function PostsFeed({ posts }) {
   if (!posts || posts.length === 0) return null;
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <Text style={styles.sectionTitle}>EL BOX PUBLICA</Text>
+      <SectionHeader>EL BOX PUBLICA</SectionHeader>
       {posts.map((p) => <PostCard key={p._id} post={p} />)}
     </View>
   );
@@ -613,6 +650,7 @@ export default function HomeScreen({ user, onUserUpdate }) {
   const heroScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
   const insideOpacity = insideAnim;
   const insideShift = insideAnim.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
+  const nextClass = nextReservedClass(classes);
 
   return (
     <ScrollView
@@ -625,13 +663,27 @@ export default function HomeScreen({ user, onUserUpdate }) {
     >
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.hello}>{formatDate(new Date())}</Text>
-          <Text style={styles.userName}>Hola, {firstName(user?.name)}</Text>
+          <Text style={styles.hello}>{greeting().toUpperCase()} · {formatDate(new Date())}</Text>
+          <Text style={styles.userName}>{firstName(user?.name)}</Text>
         </View>
-        <Avatar uri={user?.avatar} name={user?.name} size={42} />
+        <Avatar uri={user?.avatar} name={user?.name} size={46} />
       </View>
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
+
+      {!loading && nextClass ? (
+        <View style={styles.nextClass}>
+          <View style={styles.nextClassIcon}>
+            <Ionicons name="calendar" size={18} color="#05230b" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.nextClassLabel}>TU PRÓXIMA CLASE</Text>
+            <Text style={styles.nextClassText}>
+              {dayLabel(nextClass.date)} · {nextClass.time} · {nextClass.name}
+            </Text>
+          </View>
+        </View>
+      ) : null}
 
       {!loading && gymInfo?.announcement ? (
         <View style={styles.announce}>
@@ -677,22 +729,20 @@ export default function HomeScreen({ user, onUserUpdate }) {
               </View>
             </Animated.View>
           ) : (
-            <View style={styles.checkinCard}>
+            <Animated.View style={[styles.checkinCard, { transform: [{ scale: heroScale }] }]}>
               <View style={styles.checkinIconWrap}>
-                <Ionicons name="barbell-outline" size={20} color={colors.accent} />
+                <Ionicons name="barbell" size={22} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.checkinTitle}>¿Ya llegaste al box?</Text>
                 <Text style={styles.checkinSub}>Marca tu entrada para registrar tu visita</Text>
               </View>
-              <Animated.View style={{ transform: [{ scale: heroScale }] }}>
-                <Pressable onPress={checkIn} disabled={checking} style={styles.checkinBtn}>
-                  {checking
-                    ? <ActivityIndicator size="small" color="#05230b" />
-                    : <Text style={styles.checkinBtnText}>ENTRAR</Text>}
-                </Pressable>
-              </Animated.View>
-            </View>
+              <Pressable onPress={checkIn} disabled={checking} style={styles.checkinBtn}>
+                {checking
+                  ? <ActivityIndicator size="small" color="#05230b" />
+                  : <Text style={styles.checkinBtnText}>ENTRAR</Text>}
+              </Pressable>
+            </Animated.View>
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
@@ -818,7 +868,7 @@ export function WodScreen({ user }) {
 
           {recent.length > 0 && (
             <View style={{ marginTop: spacing.xl }}>
-              <Text style={styles.histTitle}>WODS ANTERIORES</Text>
+              <SectionHeader>WODS ANTERIORES</SectionHeader>
               {recent.map((w) => {
                 const open = expandedId === w._id;
                 return (
@@ -870,8 +920,45 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-  hello: { color: colors.textMuted, fontSize: 12, letterSpacing: 1.5 },
-  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 30, letterSpacing: 1, marginTop: 2 },
+  hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
+  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 38, letterSpacing: 1, marginTop: 1 },
+
+  /* Próxima clase reservada */
+  nextClass: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: 'rgba(70,226,42,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.4)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md
+  },
+  nextClassIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center'
+  },
+  nextClassLabel: { color: colors.accent, fontSize: 10, letterSpacing: 2, fontWeight: '800' },
+  nextClassText: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginTop: 2 },
+
+  /* Encabezado de sección con barra de acento */
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
+  sectionAccent: { width: 4, height: 18, borderRadius: 2, backgroundColor: colors.accent },
+
+  /* Estado vacío genérico */
+  emptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: radii.md,
+    padding: spacing.md
+  },
+  emptyText: { color: colors.textMuted, fontSize: 13, flex: 1 },
 
   avatarFallback: {
     backgroundColor: colors.accent,
@@ -913,37 +1000,47 @@ const styles = StyleSheet.create({
   pendingText: { color: colors.textPrimary, fontSize: 14, lineHeight: 21 },
   pendingHint: { color: colors.textMuted, fontSize: 12, marginTop: spacing.md },
 
-  /* Check-in: tarjeta propia (pronto con código QR) */
+  /* Check-in: tarjeta héroe (pronto con código QR) */
   checkinCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(70,226,42,0.3)',
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
     borderRadius: radii.md,
     padding: spacing.md,
-    marginBottom: spacing.lg
+    marginBottom: spacing.lg,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 }
   },
   checkinIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(70,226,42,0.12)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(70,226,42,0.14)',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  checkinTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  checkinTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800' },
   checkinSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   checkinBtn: {
     backgroundColor: colors.accent,
     borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    minWidth: 84,
-    alignItems: 'center'
+    paddingVertical: 11,
+    paddingHorizontal: 18,
+    minWidth: 92,
+    alignItems: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 0 }
   },
-  checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 16, letterSpacing: 1.5 },
+  checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 17, letterSpacing: 1.5 },
 
   /* Secciones del inicio */
   sectionTitle: {
