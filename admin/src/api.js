@@ -72,4 +72,16 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify(data),
         }),
+
+    // Clases con cupo
+    listClasses: () => request('/api/classes'),
+    createClass: (data) =>
+        request('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
+    deleteClass: (id) => request(`/api/classes/${id}`, { method: 'DELETE' }),
+
+    // Publicaciones (feed del gimnasio)
+    listPosts: () => request('/api/posts'),
+    createPost: (data) =>
+        request('/api/posts', { method: 'POST', body: JSON.stringify(data) }),
+    deletePost: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
 };

@@ -140,6 +140,15 @@ export const api = {
 
   getGymInfo: () => request('/api/gym-info'),
 
+  // Clases con cupo
+  getClasses: () => request('/api/classes'),
+  reserveClass: (id) => request(`/api/classes/${id}/reserve`, { method: 'POST' }),
+  cancelClassReservation: (id) =>
+    request(`/api/classes/${id}/reserve`, { method: 'DELETE' }),
+
+  // Publicaciones del gimnasio
+  getPosts: () => request('/api/posts'),
+
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),
   checkIn: () => request('/api/attendances/checkin', { method: 'POST' }),

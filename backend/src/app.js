@@ -12,6 +12,8 @@ import workoutRoutes from './routes/workouts.js';
 import statsRoutes from './routes/stats.js';
 import gymInfoRoutes from './routes/gymInfo.js';
 import prRoutes from './routes/prs.js';
+import classRoutes from './routes/classes.js';
+import postRoutes from './routes/posts.js';
 
 // Builds the Express app without connecting to the database or listening on a
 // port, so tests can mount it on an ephemeral port. index.js does the rest.
@@ -57,6 +59,8 @@ export function createApp() {
   app.use('/api/stats', statsRoutes);
   app.use('/api/gym-info', gymInfoRoutes);
   app.use('/api/prs', prRoutes);
+  app.use('/api/classes', classRoutes);
+  app.use('/api/posts', postRoutes);
   app.use(notFound);
   app.use(errorHandler);
 

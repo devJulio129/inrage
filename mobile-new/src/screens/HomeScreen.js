@@ -12,7 +12,8 @@ import {
   Animated,
   Easing,
   Alert,
-  Platform
+  Platform,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, type } from '../theme';
@@ -192,6 +193,46 @@ function timeAgo(date) {
   return `hace ${Math.floor(hours / 24)} d`;
 }
 
+// ── Clases y feed: helpers de fecha y video ─────────────────────────
+function localDayStr(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// El server guarda el día a medianoche; la parte UTC del ISO devuelve el día
+// elegido sin importar la zona horaria del server.
+function classDay(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function dayLabel(date) {
+  const day = classDay(date);
+  if (day === localDayStr()) return 'HOY';
+  if (day === localDayStr(1)) return 'MAÑANA';
+  const [y, m, dd] = day.split('-').map(Number);
+  return new Date(y, m - 1, dd)
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
+    .toUpperCase();
+}
+
+function groupClassesByDay(list) {
+  const today = localDayStr();
+  const map = new Map();
+  for (const c of list || []) {
+    if (classDay(c.date) < today) continue;
+    const k = dayLabel(c.date);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(c);
+  }
+  return [...map.entries()];
+}
+
+function youtubeId(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
 // Foto del miembro (base64) o iniciales sobre el verde de la marca.
 function Avatar({ uri, name, size = 36 }) {
   const initials = (name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -318,6 +359,138 @@ function WodComments({ workout, user }) {
   );
 }
 
+// ── Reserva de clases ───────────────────────────────────────────────
+function ClassesSection({ classes, onChanged }) {
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function toggle(c) {
+    if (busyId) return;
+    if (c.mine) {
+      const ok = await confirmAsync(
+        'Cancelar reserva',
+        `¿Liberar tu lugar de las ${c.time} (${dayLabel(c.date)})?`,
+        'Liberar'
+      );
+      if (!ok) return;
+    }
+    setBusyId(c._id);
+    setError(null);
+    try {
+      if (c.mine) await api.cancelClassReservation(c._id);
+      else await api.reserveClass(c._id);
+      await onChanged?.();
+    } catch (err) {
+      setError(err.message);
+      await onChanged?.(); // el cupo pudo cambiar (p. ej. se llenó)
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const groups = groupClassesByDay(classes);
+  if (groups.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: spacing.md }}>
+      <Text style={styles.sectionTitle}>RESERVA TU CLASE</Text>
+      {error && <Text style={styles.commentsError}>{error}</Text>}
+      {groups.map(([day, list]) => (
+        <View key={day}>
+          <Text style={styles.dayHead}>{day}</Text>
+          {list.map((c) => {
+            const full = c.spotsLeft === 0 && !c.mine;
+            return (
+              <View key={c._id} style={styles.classCard}>
+                <Text style={styles.classTime}>{c.time}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.className}>{c.name}</Text>
+                  <Text style={[styles.classSpots, c.spotsLeft === 0 && !c.mine && { color: colors.danger }]}>
+                    {c.mine
+                      ? 'Tienes tu lugar apartado'
+                      : c.spotsLeft === 0
+                        ? 'Clase llena'
+                        : `${c.spotsLeft} de ${c.capacity} lugares libres`}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => toggle(c)}
+                  disabled={full || busyId === c._id}
+                  style={[styles.classBtn, c.mine && styles.classBtnMine, full && styles.classBtnFull]}
+                >
+                  {busyId === c._id ? (
+                    <ActivityIndicator size="small" color={c.mine ? colors.accent : '#05230b'} />
+                  ) : (
+                    <Text style={[styles.classBtnText, c.mine && styles.classBtnTextMine, full && styles.classBtnTextFull]}>
+                      {c.mine ? 'RESERVADO ✓' : full ? 'LLENA' : 'RESERVAR'}
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ── Feed de publicaciones del gimnasio ──────────────────────────────
+function PostCard({ post }) {
+  const yt = youtubeId(post.videoUrl);
+  return (
+    <View style={styles.postCard}>
+      <Text style={styles.postDate}>
+        {new Date(post.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })} · {timeAgo(post.createdAt)}
+      </Text>
+      {post.title ? <Text style={styles.postTitle}>{post.title}</Text> : null}
+      {post.body ? <Text style={styles.postBody}>{post.body}</Text> : null}
+      {post.image ? <Image source={{ uri: post.image }} style={styles.postImg} /> : null}
+      {post.videoUrl ? (
+        <Pressable style={styles.postVideo} onPress={() => Linking.openURL(post.videoUrl)}>
+          {yt ? (
+            <Image
+              source={{ uri: `https://img.youtube.com/vi/${yt}/hqdefault.jpg` }}
+              style={styles.postVideoThumb}
+            />
+          ) : null}
+          <View style={styles.postVideoRow}>
+            <Ionicons name="play-circle" size={20} color={colors.accent} />
+            <Text style={styles.postVideoText}>Ver video</Text>
+          </View>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function PostsFeed({ posts }) {
+  if (!posts || posts.length === 0) return null;
+  return (
+    <View style={{ marginBottom: spacing.md }}>
+      <Text style={styles.sectionTitle}>EL BOX PUBLICA</Text>
+      {posts.map((p) => <PostCard key={p._id} post={p} />)}
+    </View>
+  );
+}
+
+// Info del gimnasio como pie de página compacto.
+function GymFooter({ info }) {
+  if (!info) return null;
+  return (
+    <View style={styles.footer}>
+      <Text style={styles.footerBrand}>{(info.name || 'InRage CrossFit').toUpperCase()}</Text>
+      {(info.schedule || []).map((s, i) => (
+        <Text key={i} style={styles.footerLine}>{s.day} · {s.hours}</Text>
+      ))}
+      {info.address ? <Text style={styles.footerLine}>{info.address}</Text> : null}
+      {(info.phone || info.instagram) ? (
+        <Text style={styles.footerLine}>{[info.phone, info.instagram].filter(Boolean).join(' · ')}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 // ── Inicio: saludo, avisos, check-in e info del box ─────────────────
 export default function HomeScreen({ user, onUserUpdate }) {
   const [loading, setLoading] = useState(true);
@@ -328,6 +501,8 @@ export default function HomeScreen({ user, onUserUpdate }) {
   const [checkinError, setCheckinError] = useState(null);
 
   const [gymInfo, setGymInfo] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [posts, setPosts] = useState([]);
 
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
   const inGym = Boolean(attendance?.inGym);
@@ -373,14 +548,28 @@ export default function HomeScreen({ user, onUserUpdate }) {
       setGymInfo(await api.getGymInfo());
     } catch {}
 
+    // El feed es para todos (también cuentas pendientes: es contenido educativo).
+    try {
+      setPosts(await api.getPosts());
+    } catch {}
+
     if (active) {
       try {
         setAttendance(await api.myAttendance());
+      } catch {}
+      try {
+        setClasses(await api.getClasses());
       } catch {}
     }
 
     setLoading(false);
     setRefreshing(false);
+  }
+
+  async function refreshClasses() {
+    try {
+      setClasses(await api.getClasses());
+    } catch {}
   }
 
   useEffect(() => {
@@ -451,17 +640,18 @@ export default function HomeScreen({ user, onUserUpdate }) {
         </View>
       ) : null}
 
-      {/* PENDING: sin WOD, solo info del gym */}
+      {/* PENDING: sin reservas, pero con el feed y la info del gym */}
       {!loading && !isActive && (
         <>
           <View style={styles.pendingCard}>
             <Text style={styles.pendingTitle}>⏳ Cuenta pendiente</Text>
             <Text style={styles.pendingText}>
-              Tu cuenta está en revisión. En cuanto el gimnasio te dé de alta, aquí
-              aparecerá el WOD del día. Mientras tanto, revisa la info del box.
+              Tu cuenta está en revisión. En cuanto el gimnasio te dé de alta podrás
+              reservar clase y ver el WOD del día.
             </Text>
             <Text style={styles.pendingHint}>Desliza hacia abajo para actualizar.</Text>
           </View>
+          <PostsFeed posts={posts} />
           <GymInfo info={gymInfo} />
         </>
       )}
@@ -506,7 +696,9 @@ export default function HomeScreen({ user, onUserUpdate }) {
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
-          <GymInfo info={gymInfo} />
+          <ClassesSection classes={classes} onChanged={refreshClasses} />
+          <PostsFeed posts={posts} />
+          <GymFooter info={gymInfo} />
         </>
       )}
     </ScrollView>
@@ -752,6 +944,115 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 16, letterSpacing: 1.5 },
+
+  /* Secciones del inicio */
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontFamily: type.display,
+    fontSize: 22,
+    letterSpacing: 1.5,
+    marginBottom: spacing.sm
+  },
+
+  /* Reserva de clases */
+  dayHead: {
+    color: colors.accent,
+    fontFamily: type.mono,
+    fontSize: 11,
+    letterSpacing: 2,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs + 2
+  },
+  classCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm
+  },
+  classTime: {
+    color: colors.textPrimary,
+    fontFamily: type.display,
+    fontSize: 24,
+    letterSpacing: 1,
+    minWidth: 58
+  },
+  className: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  classSpots: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  classBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    minWidth: 104,
+    alignItems: 'center'
+  },
+  classBtnMine: {
+    backgroundColor: 'rgba(70,226,42,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.45)'
+  },
+  classBtnFull: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
+  classBtnText: { color: '#05230b', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  classBtnTextMine: { color: colors.accent },
+  classBtnTextFull: { color: colors.textMuted },
+
+  /* Feed de publicaciones */
+  postCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm + 2
+  },
+  postDate: { color: colors.textMuted, fontSize: 11, marginBottom: 6 },
+  postTitle: { color: colors.textPrimary, fontFamily: type.display, fontSize: 22, letterSpacing: 1, marginBottom: 4 },
+  postBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, marginBottom: spacing.sm },
+  postImg: {
+    width: '100%',
+    height: 190,
+    borderRadius: radii.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surfaceAlt
+  },
+  postVideo: {
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.35)',
+    borderRadius: radii.md,
+    overflow: 'hidden'
+  },
+  postVideoThumb: { width: '100%', height: 170, backgroundColor: colors.surfaceAlt },
+  postVideoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md
+  },
+  postVideoText: { color: colors.accent, fontSize: 14, fontWeight: '800' },
+
+  /* Footer compacto con la info del gym */
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.lg,
+    marginTop: spacing.md,
+    alignItems: 'center'
+  },
+  footerBrand: {
+    color: colors.textMuted,
+    fontFamily: type.display,
+    fontSize: 18,
+    letterSpacing: 3,
+    marginBottom: spacing.sm
+  },
+  footerLine: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'center' },
 
   /* Dentro del box */
   statusRow: {

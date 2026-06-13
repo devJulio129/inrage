@@ -59,6 +59,42 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Día local (zona del navegador) como "YYYY-MM-DD", con desplazamiento.
+function localDayStr(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// El server guarda el día de la clase a medianoche; recuperamos el día
+// elegido leyendo la parte UTC del ISO (estable aunque server y gym vivan
+// en zonas horarias distintas).
+function classDay(date) {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function dayLabel(date) {
+  const day = classDay(date);
+  if (day === localDayStr()) return 'HOY';
+  if (day === localDayStr(1)) return 'MAÑANA';
+  const [y, m, dd] = day.split('-').map(Number);
+  return new Date(y, m - 1, dd)
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'short' })
+    .toUpperCase();
+}
+
+function groupClassesByDay(list) {
+  const today = localDayStr();
+  const map = new Map();
+  for (const c of list) {
+    if (classDay(c.date) < today) continue; // días ya pasados (zona local)
+    const k = dayLabel(c.date);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(c);
+  }
+  return [...map.entries()];
+}
+
 // Comentarios de un WOD (carga al expandir). El admin puede borrar cualquiera.
 function WodCommentsAdmin({ wodId }) {
   const [comments, setComments] = useState(null);
@@ -130,6 +166,8 @@ const ICON_PATHS = {
   clipboard: <><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></>,
   home: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
   clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
+  megaphone: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
 };
 
@@ -150,9 +188,30 @@ const NAV_ITEMS = [
   { id: 'stats', label: 'Estadísticas', icon: 'chart' },
   { id: 'athletes', label: 'Atletas', icon: 'users' },
   { id: 'wod', label: 'WOD del día', icon: 'clipboard' },
+  { id: 'classes', label: 'Clases', icon: 'calendar' },
+  { id: 'posts', label: 'Publicaciones', icon: 'megaphone' },
   { id: 'info', label: 'Gimnasio', icon: 'home' },
   { id: 'logs', label: 'Accesos', icon: 'clock' },
 ];
+
+// Reduce una imagen local a ~900px JPEG antes de subirla como data-URI:
+// el feed carga rápido y la base de datos no engorda.
+function fileToSmallDataUri(file, maxW = 900, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 // Badge for an access-history event.
 function eventBadge(event) {
@@ -206,6 +265,22 @@ export default function App() {
   const [gymLoading, setGymLoading] = useState(false);
   const [gymSaving, setGymSaving] = useState(false);
   const [gymMsg, setGymMsg] = useState(null);
+
+  // Clases (reserva con cupo)
+  const [classes, setClasses] = useState([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [classesError, setClassesError] = useState(null);
+  const [classForm, setClassForm] = useState({ date: localDayStr(), time: '18:00', name: 'CrossFit', capacity: 12 });
+  const [classSaving, setClassSaving] = useState(false);
+  const [classMsg, setClassMsg] = useState(null);
+
+  // Publicaciones (feed del gimnasio)
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState(null);
+  const [postForm, setPostForm] = useState({ title: '', body: '', videoUrl: '', image: null });
+  const [postSaving, setPostSaving] = useState(false);
+  const [postMsg, setPostMsg] = useState(null);
 
   // WOD
   const [openCommentsId, setOpenCommentsId] = useState(null);
@@ -282,6 +357,76 @@ export default function App() {
       .catch(err => { setGymMsg('Error: ' + err.message); setGymLoading(false); });
   }
 
+  function fetchClasses() {
+    setClassesLoading(true);
+    setClassesError(null);
+    api.listClasses()
+      .then(data => { setClasses(data); setClassesLoading(false); })
+      .catch(err => { setClassesError(err.message); setClassesLoading(false); });
+  }
+
+  function handleClassSubmit(e) {
+    e.preventDefault();
+    setClassMsg(null);
+    setClassSaving(true);
+    api.createClass(classForm)
+      .then(() => { setClassMsg('Clase abierta ✓ — ya se puede reservar desde la app'); fetchClasses(); })
+      .catch(err => setClassMsg('Error: ' + err.message))
+      .finally(() => setClassSaving(false));
+  }
+
+  function handleClassDelete(c) {
+    if (!window.confirm(`¿Eliminar la clase de ${c.time} (${dayLabel(c.date)})? Se pierden sus ${c.reserved} reservas.`)) return;
+    api.deleteClass(c._id)
+      .then(fetchClasses)
+      .catch(err => alert('Error: ' + err.message));
+  }
+
+  function fetchPosts() {
+    setPostsLoading(true);
+    setPostsError(null);
+    api.listPosts()
+      .then(data => { setPosts(data); setPostsLoading(false); })
+      .catch(err => { setPostsError(err.message); setPostsLoading(false); });
+  }
+
+  async function handlePostImage(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const uri = await fileToSmallDataUri(file);
+      if (uri.length > 400_000) {
+        setPostMsg('Error: la imagen sigue muy pesada, intenta con otra');
+        return;
+      }
+      setPostMsg(null);
+      setPostForm(p => ({ ...p, image: uri }));
+    } catch {
+      setPostMsg('Error: no se pudo leer la imagen');
+    }
+  }
+
+  function handlePostSubmit(e) {
+    e.preventDefault();
+    setPostMsg(null);
+    setPostSaving(true);
+    api.createPost(postForm)
+      .then(() => {
+        setPostMsg('Publicado ✓ — ya aparece en el inicio de la app');
+        setPostForm({ title: '', body: '', videoUrl: '', image: null });
+        fetchPosts();
+      })
+      .catch(err => setPostMsg('Error: ' + err.message))
+      .finally(() => setPostSaving(false));
+  }
+
+  function handlePostDelete(p) {
+    if (!window.confirm('¿Eliminar esta publicación?')) return;
+    api.deletePost(p._id)
+      .then(fetchPosts)
+      .catch(err => alert('Error: ' + err.message));
+  }
+
   function handleGymChange(e) {
     setGymForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -323,6 +468,8 @@ export default function App() {
     if (tab === 'stats') fetchStats();
     if (tab === 'gym') fetchActive();
     if (tab === 'info') fetchGymInfo();
+    if (tab === 'classes') fetchClasses();
+    if (tab === 'posts') fetchPosts();
   }, [token, tab]);
 
   // Live-refresh the access history every 12s so mobile logins appear on their own.
@@ -924,6 +1071,139 @@ export default function App() {
               </div>
             );
           })}
+        </section>
+      )}
+      {/* ── CLASES (RESERVA CON CUPO) TAB ── */}
+      {tab === 'classes' && (
+        <section>
+          <div className="section-head">
+            <h2>Clases</h2>
+            <button className="btn-ghost" onClick={fetchClasses}>Actualizar</button>
+          </div>
+
+          <form onSubmit={handleClassSubmit} className="card">
+            <h3 style={{ marginTop: 0 }}>Abrir clase</h3>
+            <div className="class-form-row">
+              <label className="lbl-col">Fecha
+                <input type="date" value={classForm.date} min={localDayStr()}
+                  onChange={e => setClassForm(p => ({ ...p, date: e.target.value }))} required />
+              </label>
+              <label className="lbl-col">Hora
+                <input type="time" value={classForm.time}
+                  onChange={e => setClassForm(p => ({ ...p, time: e.target.value }))} required />
+              </label>
+              <label className="lbl-col">Nombre
+                <input value={classForm.name} placeholder="CrossFit"
+                  onChange={e => setClassForm(p => ({ ...p, name: e.target.value }))} />
+              </label>
+              <label className="lbl-col">Lugares
+                <input type="number" min="1" max="100" value={classForm.capacity}
+                  onChange={e => setClassForm(p => ({ ...p, capacity: e.target.value }))} required />
+              </label>
+              <button type="submit" className="btn-primary" disabled={classSaving}>
+                {classSaving ? 'Abriendo…' : '+ Abrir'}
+              </button>
+            </div>
+            {classMsg && <p className={classMsg.startsWith('Error') ? 'error' : 'ok'}>{classMsg}</p>}
+            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+              Los atletas reservan su lugar desde la app. Abre una clase por cada horario del día.
+            </p>
+          </form>
+
+          {classesLoading && <p className="muted">Cargando…</p>}
+          {classesError && <p className="error">Error: {classesError}</p>}
+          {!classesLoading && !classesError && groupClassesByDay(classes).length === 0 && (
+            <EmptyState icon="📅">Sin clases próximas. Abre la primera aquí arriba.</EmptyState>
+          )}
+
+          {!classesLoading && groupClassesByDay(classes).map(([day, list]) => (
+            <div key={day}>
+              <h3 className="day-head">{day}</h3>
+              {list.map(c => (
+                <div key={c._id} className="card class-card">
+                  <div className="class-time">{c.time}</div>
+                  <div className="class-info">
+                    <h3>{c.name}</h3>
+                    <p className="meta">{c.reserved}/{c.capacity} reservados</p>
+                    {c.roster?.length > 0 && (
+                      <div className="roster">
+                        {c.roster.map((n, i) => <span key={i} className="pill pill-green">{n}</span>)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="actions" style={{ alignItems: 'center' }}>
+                    <span className={`spots-badge${c.spotsLeft === 0 ? ' full' : ''}`}>
+                      {c.spotsLeft === 0 ? 'LLENA' : `${c.spotsLeft} libres`}
+                    </span>
+                    <button className="btn-danger" onClick={() => handleClassDelete(c)}>Eliminar</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* ── PUBLICACIONES (FEED) TAB ── */}
+      {tab === 'posts' && (
+        <section>
+          <div className="section-head">
+            <h2>Publicaciones</h2>
+            <button className="btn-ghost" onClick={fetchPosts}>Actualizar</button>
+          </div>
+
+          <form onSubmit={handlePostSubmit} className="card stack">
+            <h3 style={{ margin: 0 }}>Nueva publicación</h3>
+            <input placeholder="Título (opcional)" maxLength={120} value={postForm.title}
+              onChange={e => setPostForm(p => ({ ...p, title: e.target.value }))} />
+            <textarea rows={4} maxLength={3000}
+              placeholder="Educación deportiva, técnica, recomendaciones, avisos largos…"
+              value={postForm.body}
+              onChange={e => setPostForm(p => ({ ...p, body: e.target.value }))} />
+            <label className="lbl">Link de video (YouTube, Instagram… — opcional)</label>
+            <input placeholder="https://youtube.com/watch?v=…" value={postForm.videoUrl}
+              onChange={e => setPostForm(p => ({ ...p, videoUrl: e.target.value }))} />
+            <label className="lbl">Imagen (opcional — se comprime sola)</label>
+            <input type="file" accept="image/*" onChange={handlePostImage} />
+            {postForm.image && (
+              <div className="img-preview">
+                <img src={postForm.image} alt="vista previa" />
+                <button type="button" className="btn-ghost"
+                  onClick={() => setPostForm(p => ({ ...p, image: null }))}>Quitar imagen</button>
+              </div>
+            )}
+            <div className="row">
+              <button type="submit" className="btn-primary" disabled={postSaving}>
+                {postSaving ? 'Publicando…' : 'Publicar'}
+              </button>
+            </div>
+            {postMsg && <p className={postMsg.startsWith('Error') ? 'error' : 'ok'}>{postMsg}</p>}
+          </form>
+
+          {postsLoading && <p className="muted">Cargando…</p>}
+          {postsError && <p className="error">Error: {postsError}</p>}
+          {!postsLoading && !postsError && posts.length === 0 && (
+            <EmptyState icon="📣">Aún no hay publicaciones. La primera aparecerá en el inicio de la app.</EmptyState>
+          )}
+
+          {!postsLoading && posts.map(p => (
+            <div key={p._id} className="card post-card">
+              <div className="post-head">
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {new Date(p.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })} · {timeAgo(p.createdAt)}
+                </span>
+                <button className="btn-danger btn-sm" onClick={() => handlePostDelete(p)}>Eliminar</button>
+              </div>
+              {p.title && <h3 className="post-title">{p.title}</h3>}
+              {p.body && <p className="post-body">{p.body}</p>}
+              {p.image && <img className="post-img" src={p.image} alt="" />}
+              {p.videoUrl && (
+                <a className="post-video" href={p.videoUrl} target="_blank" rel="noreferrer">
+                  ▶ Ver video
+                </a>
+              )}
+            </div>
+          ))}
         </section>
       )}
       </main>
