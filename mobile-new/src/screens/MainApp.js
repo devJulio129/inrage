@@ -1,24 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, TextInput,
-  ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform
+  ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
-import HomeScreen from './HomeScreen';
+import HomeScreen, { WodScreen } from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 
 const TABS = [
-  { key: 'home', label: 'Inicio', icon: 'barbell-outline', iconActive: 'barbell' },
-  { key: 'profile', label: 'Perfil', icon: 'person-outline', iconActive: 'person' }
+  { key: 'home', label: 'Inicio', icon: 'home-outline', iconActive: 'home' },
+  { key: 'wod', label: 'WOD', icon: 'barbell-outline', iconActive: 'barbell' },
+  { key: 'profile', label: 'Perfil', icon: 'person-outline', iconActive: 'person' },
+  { key: 'settings', label: 'Ajustes', icon: 'settings-outline', iconActive: 'settings' }
 ];
 
-// Las cuentas creadas con Google llegan sin teléfono ni fecha real de
-// nacimiento (se rellenan con placeholders). Detectamos eso y pedimos los
-// datos una vez, para que la base del gimnasio quede completa.
+// Las cuentas creadas con Google llegan sin teléfono real (placeholder N/A).
+// OJO: el login normal responde SIN el campo phone — si aún no lo conocemos
+// (undefined) NO preguntamos; primero se refresca el perfil con /auth/me.
 function needsProfileData(user) {
-  const phone = (user?.phone || '').trim();
+  if (!user || user.phone === undefined) return false;
+  const phone = String(user.phone || '').trim();
   return !phone || phone.toUpperCase() === 'N/A';
 }
 
@@ -114,9 +118,84 @@ function CompleteProfile({ user, onDone, onSkip }) {
   );
 }
 
+// ── Ajustes ─────────────────────────────────────────────────────────
+function SettingsScreen({ user, onLogout }) {
+  const initials = (user?.name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const version = Constants.expoConfig?.version || '1.0.0';
+  const isActive = user?.role === 'admin' || user?.status !== 'pending';
+
+  return (
+    <ScrollView style={st.container} contentContainerStyle={st.content}>
+      <Text style={st.screenTitle}>AJUSTES</Text>
+
+      <View style={st.accountCard}>
+        {user?.avatar ? (
+          <Image source={{ uri: user.avatar }} style={st.avatar} />
+        ) : (
+          <View style={[st.avatar, st.avatarFallback]}>
+            <Text style={st.avatarInitials}>{initials}</Text>
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={st.name}>{user?.name || 'Atleta'}</Text>
+          <Text style={st.email}>{user?.email}</Text>
+        </View>
+        <View style={[st.badge, { borderColor: isActive ? 'rgba(70,226,42,0.4)' : 'rgba(242,192,55,0.4)' }]}>
+          <Text style={[st.badgeText, { color: isActive ? colors.accent : '#F2C037' }]}>
+            {user?.role === 'admin' ? 'ADMIN' : isActive ? 'ACTIVO' : 'PENDIENTE'}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={st.sectionLabel}>SESIÓN</Text>
+      <View style={st.group}>
+        <View style={st.row}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={st.rowTitle}>Sesión por visita</Text>
+            <Text style={st.rowSub}>Al cerrar la app, tu sesión se cierra automáticamente</Text>
+          </View>
+        </View>
+        <Pressable style={[st.row, st.rowLast]} onPress={onLogout}>
+          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+          <Text style={[st.rowTitle, { color: colors.danger }]}>Cerrar sesión ahora</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <Text style={st.sectionLabel}>ACERCA DE</Text>
+      <View style={st.group}>
+        <View style={st.row}>
+          <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+          <Text style={st.rowTitle}>Versión</Text>
+          <Text style={st.rowValue}>{version}</Text>
+        </View>
+        <View style={[st.row, st.rowLast]}>
+          <Ionicons name="barbell-outline" size={18} color={colors.textMuted} />
+          <Text style={st.rowTitle}>InRage CrossFit</Text>
+          <Text style={st.rowValue}>Tampico, MX</Text>
+        </View>
+      </View>
+
+      <Text style={st.foot}>Hecho con 💚 para la comunidad InRage</Text>
+    </ScrollView>
+  );
+}
+
 export default function MainApp({ user, onUserUpdate, onLogout }) {
   const [tab, setTab] = useState('home');
   const [skippedProfile, setSkippedProfile] = useState(false);
+
+  // El login responde sin phone: se refresca el perfil completo UNA vez para
+  // saber si de verdad faltan datos (solo pasa con cuentas de Google nuevas).
+  useEffect(() => {
+    if (user?.phone !== undefined) return;
+    let alive = true;
+    api.me()
+      .then((fresh) => { if (alive) onUserUpdate?.(fresh); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   if (user && needsProfileData(user) && !skippedProfile) {
     return (
@@ -131,11 +210,10 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
   return (
     <View style={styles.container}>
       <View style={styles.screen}>
-        {tab === 'home' ? (
-          <HomeScreen user={user} onUserUpdate={onUserUpdate} />
-        ) : (
-          <ProfileScreen user={user} onLogout={onLogout} />
-        )}
+        {tab === 'home' && <HomeScreen user={user} onUserUpdate={onUserUpdate} />}
+        {tab === 'wod' && <WodScreen user={user} />}
+        {tab === 'profile' && <ProfileScreen user={user} />}
+        {tab === 'settings' && <SettingsScreen user={user} onLogout={onLogout} />}
       </View>
 
       <View style={styles.tabbar}>
@@ -146,11 +224,11 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
               <View style={[styles.tabPill, active && styles.tabPillActive]}>
                 <Ionicons
                   name={active ? t.iconActive : t.icon}
-                  size={20}
+                  size={21}
                   color={active ? colors.accent : colors.textMuted}
                 />
-                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
               </View>
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           );
         })}
@@ -187,6 +265,45 @@ const cp = StyleSheet.create({
   skip: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg, fontSize: 14 }
 });
 
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.base },
+  content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
+  screenTitle: {
+    color: colors.textPrimary, fontFamily: type.display, fontSize: 30,
+    letterSpacing: 1.5, marginBottom: spacing.lg
+  },
+  accountCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radii.md,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, marginBottom: spacing.xl
+  },
+  avatar: { width: 52, height: 52, borderRadius: 26 },
+  avatarFallback: { backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { color: '#05230b', fontWeight: '900', fontSize: 19 },
+  name: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  email: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  badge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+
+  sectionLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 2, marginBottom: spacing.sm },
+  group: {
+    backgroundColor: colors.surface, borderRadius: radii.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.md, marginBottom: spacing.xl
+  },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border
+  },
+  rowLast: { borderBottomWidth: 0 },
+  rowTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', flex: 1 },
+  rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
+  rowValue: { color: colors.textMuted, fontSize: 13 },
+  foot: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.md }
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   screen: { flex: 1 },
@@ -195,20 +312,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surfaceAlt,
-    paddingTop: spacing.sm,
+    paddingTop: 6,
     paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.md
+    paddingHorizontal: spacing.sm
   },
   tab: { flex: 1, alignItems: 'center' },
   tabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    paddingVertical: 9,
+    paddingVertical: 5,
     paddingHorizontal: 18,
-    borderRadius: 22
+    borderRadius: 16
   },
   tabPillActive: { backgroundColor: 'rgba(70,226,42,0.12)' },
-  tabLabel: { fontSize: 12, color: colors.textMuted, letterSpacing: 0.5, fontWeight: '600' },
+  tabLabel: { fontSize: 10.5, color: colors.textMuted, letterSpacing: 0.4, fontWeight: '600', marginTop: 1 },
   tabLabelActive: { color: colors.accent, fontWeight: '800' }
 });

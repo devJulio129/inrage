@@ -65,6 +65,10 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
       setError('Escribe tu correo y contraseña');
       return;
     }
+    if (!isLogin && password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
 
     let payload;
     if (!isLogin) {

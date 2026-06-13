@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import passport from './middleware/passport.js';
 import memberRoutes from './routes/members.js';
@@ -16,6 +18,11 @@ import prRoutes from './routes/prs.js';
 export function createApp() {
   const app = express();
 
+  // Render runs behind a proxy: needed so req.ip is the real client IP
+  // (rate limiting and the Accesos log depend on it).
+  app.set('trust proxy', 1);
+  app.use(helmet());
+
   // CORS: allow all by default (dev). In production set CORS_ORIGIN to a
   // comma-separated list of your deployed frontend URLs to restrict it.
   const corsOrigins = process.env.CORS_ORIGIN
@@ -25,6 +32,18 @@ export function createApp() {
   // 10mb: profile photos travel as base64 data-URIs (default 100kb rejects them).
   app.use(express.json({ limit: '10mb' }));
   app.use(passport.initialize());
+
+  // Brute-force protection. The gym shares one public IP, so the login
+  // window is generous; registration is rarer and gets a tighter one.
+  const limiterOpts = {
+    windowMs: 15 * 60 * 1000,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.' }
+  };
+  app.use('/api/auth/login', rateLimit({ ...limiterOpts, limit: 100 }));
+  app.use('/api/auth/google', rateLimit({ ...limiterOpts, limit: 100 }));
+  app.use('/api/auth/register', rateLimit({ ...limiterOpts, limit: 30 }));
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', service: 'inrage-backend' });

@@ -183,7 +183,8 @@ function confirmAsync(title, msg, action = 'Eliminar') {
 }
 
 function timeAgo(date) {
-  const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60_000);
+  // Math.max evita "hace -2 min" si el reloj del server va adelantado.
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
   if (mins < 1) return 'ahora';
   if (mins < 60) return `hace ${mins} min`;
   const hours = Math.floor(mins / 60);
@@ -317,11 +318,8 @@ function WodComments({ workout, user }) {
   );
 }
 
-// ── Pantalla principal ──────────────────────────────────────────────
+// ── Inicio: saludo, avisos, check-in e info del box ─────────────────
 export default function HomeScreen({ user, onUserUpdate }) {
-  const [workout, setWorkout] = useState(null);
-  const [wodError, setWodError] = useState(null);
-  const [wodEmpty, setWodEmpty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -330,9 +328,6 @@ export default function HomeScreen({ user, onUserUpdate }) {
   const [checkinError, setCheckinError] = useState(null);
 
   const [gymInfo, setGymInfo] = useState(null);
-  const [prs, setPrs] = useState({});
-  const [recent, setRecent] = useState([]);
-  const [expandedId, setExpandedId] = useState(null);
 
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
   const inGym = Boolean(attendance?.inGym);
@@ -379,26 +374,8 @@ export default function HomeScreen({ user, onUserUpdate }) {
     } catch {}
 
     if (active) {
-      setWodError(null);
-      setWodEmpty(false);
-      try {
-        setWorkout(await api.getTodayWorkout());
-      } catch (err) {
-        setWorkout(null);
-        if (err.status === 404) setWodEmpty(true);
-        else setWodError(err.message);
-      }
       try {
         setAttendance(await api.myAttendance());
-      } catch {}
-      try {
-        const prList = await api.getPRs();
-        const map = {};
-        for (const pr of prList || []) map[pr.movement] = { value: pr.value, unit: pr.unit };
-        setPrs(map);
-      } catch {}
-      try {
-        setRecent(await api.getRecentWorkouts());
       } catch {}
     }
 
@@ -489,7 +466,7 @@ export default function HomeScreen({ user, onUserUpdate }) {
         </>
       )}
 
-      {/* ACTIVO: check-in como acción propia + WOD siempre visible */}
+      {/* ACTIVO: check-in como acción propia + info del box */}
       {!loading && isActive && (
         <>
           {/* Check-in: registra tu visita al llegar (pronto via código QR) */}
@@ -529,6 +506,95 @@ export default function HomeScreen({ user, onUserUpdate }) {
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
+          <GymInfo info={gymInfo} />
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+// ── WOD: el entrenamiento de hoy, tu dosis y la conversación ────────
+export function WodScreen({ user }) {
+  const [workout, setWorkout] = useState(null);
+  const [wodError, setWodError] = useState(null);
+  const [wodEmpty, setWodEmpty] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [prs, setPrs] = useState({});
+  const [recent, setRecent] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const isActive = user?.role === 'admin' || user?.status !== 'pending';
+
+  async function load() {
+    if (!isActive) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setWodError(null);
+    setWodEmpty(false);
+    try {
+      setWorkout(await api.getTodayWorkout());
+    } catch (err) {
+      setWorkout(null);
+      if (err.status === 404) setWodEmpty(true);
+      else setWodError(err.message);
+    }
+    try {
+      const prList = await api.getPRs();
+      const map = {};
+      for (const pr of prList || []) map[pr.movement] = { value: pr.value, unit: pr.unit };
+      setPrs(map);
+    } catch {}
+    try {
+      setRecent(await api.getRecentWorkouts());
+    } catch {}
+    setLoading(false);
+    setRefreshing(false);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function onRefresh() {
+    setRefreshing(true);
+    load();
+  }
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+      }
+    >
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hello}>{formatDate(new Date())}</Text>
+          <Text style={styles.userName}>WOD del día</Text>
+        </View>
+        <View style={styles.wodBadge}>
+          <Ionicons name="barbell" size={20} color={colors.accent} />
+        </View>
+      </View>
+
+      {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
+
+      {!loading && !isActive && (
+        <View style={styles.pendingCard}>
+          <Text style={styles.pendingTitle}>⏳ Cuenta pendiente</Text>
+          <Text style={styles.pendingText}>
+            En cuanto el gimnasio te dé de alta podrás ver el WOD del día aquí.
+          </Text>
+        </View>
+      )}
+
+      {!loading && isActive && (
+        <>
           {wodEmpty && (
             <View style={styles.errorBox}>
               <Text style={styles.errorTitle}>Aún no hay WOD para hoy</Text>
@@ -591,10 +657,6 @@ export default function HomeScreen({ user, onUserUpdate }) {
               })}
             </View>
           )}
-
-          <View style={{ marginTop: spacing.lg }}>
-            <GymInfo info={gymInfo} />
-          </View>
         </>
       )}
     </ScrollView>
@@ -621,6 +683,14 @@ const styles = StyleSheet.create({
 
   avatarFallback: {
     backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  wodBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(70,226,42,0.12)',
     alignItems: 'center',
     justifyContent: 'center'
   },

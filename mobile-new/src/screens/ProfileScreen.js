@@ -74,7 +74,7 @@ export function fmtPR(pr) {
   return pr.unit === 'time' ? `${fmtSecs(pr.value)} min` : `${pr.value} ${pr.unit}`;
 }
 
-export default function ProfileScreen({ user, onLogout }) {
+export default function ProfileScreen({ user }) {
   const [profile, setProfile] = useState(user);
   const [visits, setVisits] = useState(null);
   const [prs, setPrs] = useState({});
@@ -253,9 +253,6 @@ export default function ProfileScreen({ user, onLogout }) {
         </>
       )}
 
-      <Pressable style={styles.logout} onPress={onLogout}>
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </Pressable>
     </ScrollView>
   );
 }

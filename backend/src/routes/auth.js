@@ -48,6 +48,9 @@ router.post('/register', async (req, res, next) => {
     if (!EMAIL_RE.test(email)) {
       return res.status(400).json({ error: 'Escribe un correo válido' });
     }
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
     if (!(await emailDomainExists(email))) {
       return res.status(400).json({ error: 'El dominio del correo no existe — revisa que esté bien escrito' });
     }
@@ -165,6 +168,11 @@ router.get('/me', protect, (req, res) => {
 router.patch('/avatar', protect, async (req, res, next) => {
   try {
     const { avatar } = req.body;
+    // Solo imágenes reales y de tamaño razonable (la app la reduce a 256px;
+    // 300 KB de data-URI ≈ 220 KB de imagen). Evita inflar la base de datos.
+    if (typeof avatar !== 'string' || !avatar.startsWith('data:image/') || avatar.length > 300_000) {
+      return res.status(400).json({ error: 'Imagen inválida — intenta con otra foto' });
+    }
     await Member.findByIdAndUpdate(req.user._id, { avatar });
     res.json({ ok: true });
   } catch (err) {

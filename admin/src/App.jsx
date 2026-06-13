@@ -104,7 +104,8 @@ function WodCommentsAdmin({ wodId }) {
 
 // "hace 5 min" — relative time for logs and member cards.
 function timeAgo(date) {
-  const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60_000);
+  // Math.max evita "hace -2 min" si el reloj del server va adelantado.
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
   if (mins < 1) return 'hace un momento';
   if (mins < 60) return `hace ${mins} min`;
   const hours = Math.floor(mins / 60);

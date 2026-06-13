@@ -7,7 +7,7 @@ import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 import LoginScreen from './src/screens/LoginScreen';
 import MainApp from './src/screens/MainApp';
 import { useGoogleAuth } from './src/auth/useGoogleAuth';
-import { getToken, getStoredUser, clearSession, saveSession } from './src/api/client';
+import { getToken, clearSession, saveSession } from './src/api/client';
 import { colors } from './src/theme';
 
 export default function App() {
@@ -16,11 +16,11 @@ export default function App() {
   const googleAuth = useGoogleAuth(setUser);
   const [fontsLoaded] = useFonts({ BebasNeue_400Regular });
 
-  // Restore an existing session on launch.
+  // Sesión por visita: cerrar la app cierra la sesión. Al arrancar se
+  // descarta cualquier token guardado y siempre se pide login de nuevo.
   useEffect(() => {
     (async () => {
-      const token = await getToken();
-      if (token) setUser(await getStoredUser());
+      await clearSession();
       setBooting(false);
     })();
   }, []);
