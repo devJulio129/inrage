@@ -128,15 +128,15 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
-  // WOD comments
-  getWodComments: (workoutId) => request(`/api/workouts/${workoutId}/comments`),
-  addWodComment: (workoutId, text) =>
-    request(`/api/workouts/${workoutId}/comments`, {
+  // Comentarios unificados (workout | post) con respuestas
+  getComments: (targetType, targetId) =>
+    request(`/api/comments?targetType=${targetType}&targetId=${targetId}`),
+  addComment: (targetType, targetId, text, parentId = null) =>
+    request('/api/comments', {
       method: 'POST',
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ targetType, targetId, text, parentId })
     }),
-  deleteWodComment: (workoutId, commentId) =>
-    request(`/api/workouts/${workoutId}/comments/${commentId}`, { method: 'DELETE' }),
+  deleteComment: (id) => request(`/api/comments/${id}`, { method: 'DELETE' }),
 
   getGymInfo: () => request('/api/gym-info'),
 

@@ -1081,38 +1081,51 @@ export default function App() {
             <button className="btn-ghost" onClick={fetchClasses}>Actualizar</button>
           </div>
 
-          <form onSubmit={handleClassSubmit} className="card">
-            <h3 style={{ marginTop: 0 }}>Abrir clase</h3>
-            <div className="class-form-row">
-              <label className="lbl-col">Fecha
+          <form onSubmit={handleClassSubmit} className="card class-form">
+            <div className="class-form-head">
+              <div>
+                <h3>Abrir una clase</h3>
+                <p className="muted">Los atletas reservan su lugar desde la app. Abre una por cada horario del día.</p>
+              </div>
+            </div>
+
+            <div className="class-form-grid">
+              <label className="field-col">
+                <span>Fecha</span>
                 <input type="date" value={classForm.date} min={localDayStr()}
                   onChange={e => setClassForm(p => ({ ...p, date: e.target.value }))} required />
               </label>
-              <label className="lbl-col">Hora
+              <label className="field-col">
+                <span>Hora</span>
                 <input type="time" value={classForm.time}
                   onChange={e => setClassForm(p => ({ ...p, time: e.target.value }))} required />
               </label>
-              <label className="lbl-col">Nombre
+              <label className="field-col">
+                <span>Nombre de la clase</span>
                 <input value={classForm.name} placeholder="CrossFit"
                   onChange={e => setClassForm(p => ({ ...p, name: e.target.value }))} />
               </label>
-              <label className="lbl-col">Lugares
+              <label className="field-col">
+                <span>Lugares</span>
                 <input type="number" min="1" max="100" value={classForm.capacity}
                   onChange={e => setClassForm(p => ({ ...p, capacity: e.target.value }))} required />
               </label>
-              <button type="submit" className="btn-primary" disabled={classSaving}>
-                {classSaving ? 'Abriendo…' : '+ Abrir'}
-              </button>
             </div>
-            <label className="lbl" style={{ marginTop: 12 }}>De qué trata la clase (opcional — se ve al tocar la reserva)</label>
-            <textarea rows={3} maxLength={1000}
-              placeholder="p. ej. Sesión de fuerza: back squat 5x5 + accesorios de core. Llega 10 min antes para calentar."
-              value={classForm.description}
-              onChange={e => setClassForm(p => ({ ...p, description: e.target.value }))} />
-            {classMsg && <p className={classMsg.startsWith('Error') ? 'error' : 'ok'}>{classMsg}</p>}
-            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-              Los atletas reservan su lugar desde la app. Abre una clase por cada horario del día.
-            </p>
+
+            <label className="field-col field-full">
+              <span>De qué trata <em>(opcional — se ve al tocar la reserva)</em></span>
+              <textarea rows={3} maxLength={1000}
+                placeholder="p. ej. Sesión de fuerza: back squat 5x5 + accesorios de core. Llega 10 min antes para calentar."
+                value={classForm.description}
+                onChange={e => setClassForm(p => ({ ...p, description: e.target.value }))} />
+            </label>
+
+            <div className="class-form-actions">
+              <button type="submit" className="btn-primary" disabled={classSaving}>
+                {classSaving ? 'Abriendo…' : '+ Abrir clase'}
+              </button>
+              {classMsg && <span className={classMsg.startsWith('Error') ? 'error' : 'ok'}>{classMsg}</span>}
+            </div>
           </form>
 
           {classesLoading && <p className="muted">Cargando…</p>}

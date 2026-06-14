@@ -7,12 +7,9 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
-  TextInput,
   Image,
   Animated,
   Easing,
-  Alert,
-  Platform,
   Linking,
   Modal
 } from 'react-native';
@@ -21,6 +18,9 @@ import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import GymInfo from '../components/GymInfo';
 import Reactions from '../components/Reactions';
+import Avatar from '../components/Avatar';
+import CommentsThread from '../components/CommentsThread';
+import { timeAgo, confirmAsync, youtubeId } from '../utils';
 import { fmtSecs } from './ProfileScreen';
 
 // ── "TU WOD": prescripción personalizada a partir de los PRs ─────────
@@ -188,30 +188,7 @@ function PersonalizedWod({ description, prs }) {
   );
 }
 
-// Cross-platform confirm (Alert.alert is a no-op on react-native-web).
-function confirmAsync(title, msg, action = 'Eliminar') {
-  if (Platform.OS === 'web') {
-    return Promise.resolve(window.confirm(`${title}\n${msg}`));
-  }
-  return new Promise((resolve) =>
-    Alert.alert(title, msg, [
-      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-      { text: action, style: 'destructive', onPress: () => resolve(true) }
-    ])
-  );
-}
-
-function timeAgo(date) {
-  // Math.max evita "hace -2 min" si el reloj del server va adelantado.
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 60_000));
-  if (mins < 1) return 'ahora';
-  if (mins < 60) return `hace ${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `hace ${hours} h`;
-  return `hace ${Math.floor(hours / 24)} d`;
-}
-
-// ── Clases y feed: helpers de fecha y video ─────────────────────────
+// ── Clases y feed: helpers de fecha ─────────────────────────────────
 function localDayStr(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -246,11 +223,6 @@ function groupClassesByDay(list) {
   return [...map.entries()];
 }
 
-function youtubeId(url) {
-  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/);
-  return m ? m[1] : null;
-}
-
 function greeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Buenos días';
@@ -279,133 +251,6 @@ function SectionHeader({ children }) {
     <View style={styles.sectionHeaderRow}>
       <View style={styles.sectionAccent} />
       <Text style={styles.sectionTitle}>{children}</Text>
-    </View>
-  );
-}
-
-// Foto del miembro (base64) o iniciales sobre el verde de la marca.
-function Avatar({ uri, name, size = 36 }) {
-  const initials = (name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-  const round = { width: size, height: size, borderRadius: size / 2 };
-  if (uri) return <Image source={{ uri }} style={round} />;
-  return (
-    <View style={[round, styles.avatarFallback]}>
-      <Text style={[styles.avatarInitials, { fontSize: size * 0.38 }]}>{initials}</Text>
-    </View>
-  );
-}
-
-// ── Comentarios del WOD ─────────────────────────────────────────────
-function WodComments({ workout, user }) {
-  const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const list = await api.getWodComments(workout._id);
-        if (alive) setComments(list);
-      } catch {
-        if (alive) setError('No se pudieron cargar los comentarios.');
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [workout._id]);
-
-  async function send() {
-    const value = text.trim();
-    if (!value || sending) return;
-    setSending(true);
-    setError(null);
-    try {
-      const created = await api.addWodComment(workout._id, value);
-      setComments((prev) => [...prev, created]);
-      setText('');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSending(false);
-    }
-  }
-
-  async function remove(comment) {
-    const ok = await confirmAsync('Eliminar comentario', '¿Seguro que quieres borrarlo?');
-    if (!ok) return;
-    try {
-      await api.deleteWodComment(workout._id, comment._id);
-      setComments((prev) => prev.filter((c) => c._id !== comment._id));
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  const isAdmin = user?.role === 'admin';
-
-  return (
-    <View style={styles.commentsBlock}>
-      <View style={styles.commentsHeader}>
-        <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.accent} />
-        <Text style={styles.commentsTitle}>COMENTARIOS</Text>
-        {comments.length > 0 && <Text style={styles.commentsCount}>{comments.length}</Text>}
-      </View>
-
-      {loading && <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />}
-
-      {!loading && comments.length === 0 && (
-        <Text style={styles.commentsEmpty}>Sé el primero en comentar el WOD de hoy 💬</Text>
-      )}
-
-      {comments.map((c) => {
-        const own = String(c.member?._id) === String(user?._id);
-        return (
-          <View key={c._id} style={styles.commentRow}>
-            <Avatar uri={c.member?.avatar} name={c.member?.name} />
-            <View style={styles.commentBody}>
-              <View style={styles.commentMeta}>
-                <Text style={styles.commentName}>{c.member?.name || 'Atleta'}</Text>
-                <Text style={styles.commentTime}>{timeAgo(c.createdAt)}</Text>
-              </View>
-              <Text style={styles.commentText}>{c.text}</Text>
-              <Reactions targetType="comment" targetId={c._id} />
-            </View>
-            {(own || isAdmin) && (
-              <Pressable onPress={() => remove(c)} hitSlop={8} style={styles.commentDelete}>
-                <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
-        );
-      })}
-
-      {error && <Text style={styles.commentsError}>{error}</Text>}
-
-      <View style={styles.composer}>
-        <Avatar uri={user?.avatar} name={user?.name} size={32} />
-        <TextInput
-          style={styles.composerInput}
-          placeholder="Comenta el WOD…"
-          placeholderTextColor={colors.textMuted}
-          value={text}
-          onChangeText={setText}
-          maxLength={500}
-          multiline
-        />
-        <Pressable
-          onPress={send}
-          disabled={!text.trim() || sending}
-          style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
-        >
-          {sending
-            ? <ActivityIndicator size="small" color="#05230b" />
-            : <Ionicons name="arrow-up" size={18} color="#05230b" />}
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -592,7 +437,7 @@ function PostCardCompact({ post, onPress }) {
 }
 
 // Vista completa de una publicación (dentro del modal).
-function PostDetail({ post }) {
+function PostDetail({ post, user }) {
   const yt = youtubeId(post.videoUrl);
   return (
     <>
@@ -620,12 +465,13 @@ function PostDetail({ post }) {
         </Pressable>
       ) : null}
       <Reactions targetType="post" targetId={post._id} />
+      <CommentsThread targetType="post" targetId={post._id} user={user} />
     </>
   );
 }
 
 // Visor a pantalla completa: archivo por mes/año ↔ detalle de una publicación.
-function PostsViewer({ visible, posts, initial, onClose }) {
+function PostsViewer({ visible, posts, initial, onClose, user }) {
   const [selected, setSelected] = useState(initial);
 
   useEffect(() => { setSelected(initial); }, [initial, visible]);
@@ -651,7 +497,7 @@ function PostsViewer({ visible, posts, initial, onClose }) {
 
         <ScrollView contentContainerStyle={styles.viewerContent}>
           {selected ? (
-            <PostDetail post={selected} />
+            <PostDetail post={selected} user={user} />
           ) : (
             groups.map(([month, list]) => (
               <View key={month} style={{ marginBottom: spacing.lg }}>
@@ -671,7 +517,7 @@ function PostsViewer({ visible, posts, initial, onClose }) {
   );
 }
 
-function PostsFeed({ posts }) {
+function PostsFeed({ posts, user }) {
   const [viewer, setViewer] = useState({ open: false, initial: null });
   if (!posts || posts.length === 0) return null;
   const preview = posts.slice(0, 3);
@@ -694,6 +540,7 @@ function PostsFeed({ posts }) {
         posts={posts}
         initial={viewer.initial}
         onClose={() => setViewer({ open: false, initial: null })}
+        user={user}
       />
     </View>
   );
@@ -730,7 +577,7 @@ function GymFooter({ info }) {
 }
 
 // ── Inicio: saludo, avisos, check-in e info del box ─────────────────
-export default function HomeScreen({ user, onUserUpdate }) {
+export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -904,7 +751,7 @@ export default function HomeScreen({ user, onUserUpdate }) {
             </Text>
             <Text style={styles.pendingHint}>Desliza hacia abajo para actualizar.</Text>
           </View>
-          <PostsFeed posts={posts} />
+          <PostsFeed posts={posts} user={user} />
           <GymInfo info={gymInfo} />
         </>
       )}
@@ -947,10 +794,68 @@ export default function HomeScreen({ user, onUserUpdate }) {
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
-          <ClassesSection classes={classes} onChanged={refreshClasses} />
-          <PostsFeed posts={posts} />
+          <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
+            <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+            <Text style={styles.goToClassesText}>Ver y reservar clases</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
+
+          <PostsFeed posts={posts} user={user} />
           <GymFooter info={gymInfo} />
         </>
+      )}
+    </ScrollView>
+  );
+}
+
+// ── Clases: pestaña dedicada a la reserva ───────────────────────────
+export function ClassesScreen({ user }) {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const isActive = user?.role === 'admin' || user?.status !== 'pending';
+
+  async function load() {
+    if (!isActive) { setLoading(false); setRefreshing(false); return; }
+    try {
+      setClasses(await api.getClasses());
+    } catch {}
+    setLoading(false);
+    setRefreshing(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
+    >
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hello}>RESERVA TU LUGAR</Text>
+          <Text style={styles.userName}>Clases</Text>
+        </View>
+        <View style={styles.wodBadge}>
+          <Ionicons name="calendar" size={20} color={colors.accent} />
+        </View>
+      </View>
+
+      {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
+
+      {!loading && !isActive && (
+        <View style={styles.pendingCard}>
+          <Text style={styles.pendingTitle}>⏳ Cuenta pendiente</Text>
+          <Text style={styles.pendingText}>
+            En cuanto el gimnasio te dé de alta podrás reservar tu lugar en las clases.
+          </Text>
+        </View>
+      )}
+
+      {!loading && isActive && (
+        <ClassesSection classes={classes} onChanged={load} />
       )}
     </ScrollView>
   );
@@ -1064,7 +969,7 @@ export function WodScreen({ user }) {
                 <Reactions targetType="workout" targetId={workout._id} />
               </View>
               <PersonalizedWod description={workout.description} prs={prs} />
-              <WodComments workout={workout} user={user} />
+              <CommentsThread targetType="workout" targetId={workout._id} user={user} />
             </>
           )}
 
@@ -1094,7 +999,7 @@ export function WodScreen({ user }) {
                         <Text style={styles.description}>{w.description}</Text>
                         <Reactions targetType="workout" targetId={w._id} />
                         <PersonalizedWod description={w.description} prs={prs} />
-                        <WodComments workout={w} user={user} />
+                        <CommentsThread targetType="workout" targetId={w._id} user={user} />
                       </View>
                     )}
                   </View>
@@ -1244,6 +1149,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 }
   },
   checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 17, letterSpacing: 1.5 },
+
+  goToClasses: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg
+  },
+  goToClassesText: { flex: 1, color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
 
   /* Secciones del inicio */
   sectionTitle: {

@@ -607,31 +607,54 @@ input, select, textarea { font-family: inherit; }
 .log-time .ago { color: var(--text); font-size: 13px; }
 
 /* ───────────── Clases (reserva con cupo) ───────────── */
-.class-form-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  flex-wrap: wrap;
+.class-form { padding: 22px; }
+.class-form-head { margin-bottom: 18px; }
+.class-form-head h3 { margin: 0 0 4px; font-size: 18px; }
+.class-form-head .muted { margin: 0; font-size: 13px; }
+
+.class-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
 }
-.lbl-col {
+.field-col {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: .5px;
+  gap: 7px;
 }
-.lbl-col input {
+.field-col > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.field-col > span em { font-style: normal; text-transform: none; font-weight: 400; opacity: .8; }
+.field-col input,
+.field-col textarea {
   background: rgba(0,0,0,0.3);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 11px 13px;
   color: var(--text);
   font-size: 14px;
   outline: none;
   color-scheme: dark;
+  font-family: inherit;
+  width: 100%;
 }
-.lbl-col input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field-col textarea { resize: vertical; line-height: 1.5; }
+.field-col input:focus,
+.field-col textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field-full { margin-bottom: 16px; }
+.class-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
 
 .day-head {
   font-family: var(--font-display);

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable,
   ActivityIndicator, TextInput, Image, Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { colors, spacing, radii, type } from '../theme';
@@ -265,15 +266,29 @@ export default function ProfileScreen({ user }) {
         <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />
       ) : (
         <>
-          <View style={styles.card}>
-            <Row label="Teléfono" value={profile?.phone || '—'} />
-            <Row label="Nacimiento" value={formatDate(profile?.birthDate)} />
-            <Row label="Miembro desde" value={formatDate(profile?.joinedAt || profile?.createdAt)} />
-            {visits != null && <Row label="Visitas totales" value={String(visits)} />}
-            <Row label="Rol" value={profile?.role === 'admin' ? 'Admin' : 'Atleta'} last />
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Ionicons name="flame" size={20} color={colors.accent} />
+              <Text style={styles.statValue}>{visits ?? '—'}</Text>
+              <Text style={styles.statLabel}>Visitas</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="calendar" size={20} color={colors.accent} />
+              <Text style={styles.statValue}>{shortDate(profile?.joinedAt || profile?.createdAt)}</Text>
+              <Text style={styles.statLabel}>Miembro desde</Text>
+            </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Récords y Mediciones</Text>
+          <View style={styles.card}>
+            <Row icon="call-outline" label="Teléfono" value={profile?.phone || '—'} />
+            <Row icon="gift-outline" label="Nacimiento" value={formatDate(profile?.birthDate)} />
+            <Row icon="ribbon-outline" label="Rol" value={profile?.role === 'admin' ? 'Admin' : 'Atleta'} last />
+          </View>
+
+          <View style={styles.sectionHeadRow}>
+            <View style={styles.sectionAccent} />
+            <Text style={styles.sectionTitle}>Récords y Mediciones</Text>
+          </View>
           <Text style={styles.sectionHint}>Toca una sección para abrirla · toca un valor para editarlo</Text>
 
           {MOVEMENTS.map(({ category, items }) => {
@@ -336,10 +351,13 @@ export default function ProfileScreen({ user }) {
   );
 }
 
-function Row({ label, value, last }) {
+function Row({ icon, label, value, last }) {
   return (
     <View style={[styles.row, last && { borderBottomWidth: 0 }]}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowLeft}>
+        {icon && <Ionicons name={icon} size={16} color={colors.textMuted} />}
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
       <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
@@ -349,39 +367,57 @@ function formatDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+function shortDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xxl, alignItems: 'center', paddingBottom: spacing.xxl },
 
-  avatarWrap: { width: 96, height: 96, borderRadius: 48, marginBottom: spacing.md },
-  avatarImg: { width: 96, height: 96, borderRadius: 48 },
+  avatarWrap: { width: 112, height: 112, borderRadius: 56, marginBottom: spacing.lg },
+  avatarImg: {
+    width: 112, height: 112, borderRadius: 56,
+    borderWidth: 2, borderColor: 'rgba(70,226,42,0.5)'
+  },
   avatarPlaceholder: {
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.accent, shadowOpacity: 0.5, shadowRadius: 18, shadowOffset: { width: 0, height: 0 }
+    shadowColor: colors.accent, shadowOpacity: 0.5, shadowRadius: 22, shadowOffset: { width: 0, height: 0 }
   },
-  avatarText: { color: '#05230b', fontSize: 34, fontWeight: '900' },
+  avatarText: { color: '#05230b', fontSize: 40, fontWeight: '900' },
   avatarOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: 48, backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 56, backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center', justifyContent: 'center'
   },
   avatarBadge: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.base,
+    position: 'absolute', bottom: 2, right: 2,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.accent, borderWidth: 3, borderColor: colors.base,
     alignItems: 'center', justifyContent: 'center'
   },
-  avatarBadgeText: { color: colors.textPrimary, fontSize: 13 },
+  avatarBadgeText: { color: '#05230b', fontSize: 14, fontWeight: '900' },
 
-  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 32, letterSpacing: 1 },
+  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 36, letterSpacing: 1 },
   email: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
 
   statusChip: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingVertical: 7,
-    borderRadius: 20, marginTop: spacing.md, marginBottom: spacing.lg, borderWidth: 1
+    borderRadius: 20, marginTop: spacing.md, marginBottom: spacing.xl, borderWidth: 1
   },
+
+  statsRow: { flexDirection: 'row', gap: spacing.md, width: '100%', marginBottom: spacing.md },
+  statCard: {
+    flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.md, paddingVertical: spacing.lg, alignItems: 'center', gap: 6
+  },
+  statValue: { color: colors.textPrimary, fontFamily: type.display, fontSize: 26, letterSpacing: 0.5 },
+  statLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' },
+
+  sectionHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: spacing.sm },
+  sectionAccent: { width: 4, height: 20, borderRadius: 2, backgroundColor: colors.accent },
   statusActive: { backgroundColor: 'rgba(70,226,42,0.1)', borderColor: 'rgba(70,226,42,0.4)' },
   statusPending: { backgroundColor: 'rgba(242,192,55,0.1)', borderColor: 'rgba(242,192,55,0.4)' },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 7 },
@@ -389,22 +425,24 @@ const styles = StyleSheet.create({
 
   card: {
     width: '100%', backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
     borderRadius: radii.md, paddingHorizontal: spacing.lg, marginBottom: spacing.xl
   },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 15,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border
   },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rowLabel: { color: colors.textMuted, fontSize: 14 },
   rowValue: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
 
   sectionTitle: {
     color: colors.textPrimary, fontFamily: type.display, fontSize: 24, letterSpacing: 1,
-    alignSelf: 'flex-start', marginBottom: 2
+    marginBottom: 2
   },
   sectionHint: {
-    color: colors.textMuted, fontSize: 12, alignSelf: 'flex-start', marginBottom: spacing.md
+    color: colors.textMuted, fontSize: 12, alignSelf: 'flex-start', marginBottom: spacing.md, marginTop: 2
   },
   prGroup: {
     width: '100%', backgroundColor: colors.surface,

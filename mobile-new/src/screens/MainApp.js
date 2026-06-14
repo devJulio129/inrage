@@ -7,11 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
-import HomeScreen, { WodScreen } from './HomeScreen';
+import HomeScreen, { WodScreen, ClassesScreen } from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 
 const TABS = [
   { key: 'home', label: 'Inicio', icon: 'home-outline', iconActive: 'home' },
+  { key: 'classes', label: 'Clases', icon: 'calendar-outline', iconActive: 'calendar' },
   { key: 'wod', label: 'WOD', icon: 'barbell-outline', iconActive: 'barbell' },
   { key: 'profile', label: 'Perfil', icon: 'person-outline', iconActive: 'person' },
   { key: 'settings', label: 'Ajustes', icon: 'settings-outline', iconActive: 'settings' }
@@ -210,7 +211,8 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
   return (
     <View style={styles.container}>
       <View style={styles.screen}>
-        {tab === 'home' && <HomeScreen user={user} onUserUpdate={onUserUpdate} />}
+        {tab === 'home' && <HomeScreen user={user} onUserUpdate={onUserUpdate} onGoToClasses={() => setTab('classes')} />}
+        {tab === 'classes' && <ClassesScreen user={user} />}
         {tab === 'wod' && <WodScreen user={user} />}
         {tab === 'profile' && <ProfileScreen user={user} />}
         {tab === 'settings' && <SettingsScreen user={user} onLogout={onLogout} />}
