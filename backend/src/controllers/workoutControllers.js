@@ -1,5 +1,8 @@
 import { Workout } from '../models/Workout.js';
-import { WodComment } from '../models/WodComment.js';
+// Los comentarios de WOD ahora viven en la colección unificada `comments`
+// (targetType 'workout'); estos controllers delegan ahí para que el panel
+// admin siga funcionando con las mismas URLs.
+import { Comment } from '../models/Comment.js';
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -125,7 +128,7 @@ export async function deleteWorkout(req, res, next) {
   try {
     const workout = await Workout.findByIdAndDelete(req.params.id);
     if (!workout) return res.status(404).json({ error: 'WOD no encontrado' });
-    await WodComment.deleteMany({ workout: workout._id });
+    await Comment.deleteMany({ targetType: 'workout', targetId: workout._id });
     res.json({ message: 'WOD eliminado' });
   } catch (err) {
     next(err);
@@ -136,10 +139,10 @@ export async function deleteWorkout(req, res, next) {
 // The avatar travels with each comment so the app can show the member's
 // photo without extra round-trips. Avatars are stored small (≤256px).
 
-// GET /api/workouts/:id/comments
+// GET /api/workouts/:id/comments  (lo usa el panel admin)
 export async function listComments(req, res, next) {
   try {
-    const comments = await WodComment.find({ workout: req.params.id })
+    const comments = await Comment.find({ targetType: 'workout', targetId: req.params.id })
       .sort({ createdAt: 1 })
       .populate('member', 'name avatar')
       .lean();
@@ -164,8 +167,9 @@ export async function addComment(req, res, next) {
     const workout = await Workout.findById(req.params.id);
     if (!workout) return res.status(404).json({ error: 'WOD no encontrado' });
 
-    const comment = await WodComment.create({
-      workout: workout._id,
+    const comment = await Comment.create({
+      targetType: 'workout',
+      targetId: workout._id,
       member: req.user._id,
       text
     });
@@ -179,7 +183,7 @@ export async function addComment(req, res, next) {
 // DELETE /api/workouts/:id/comments/:commentId — own comment, or admin.
 export async function deleteComment(req, res, next) {
   try {
-    const comment = await WodComment.findById(req.params.commentId);
+    const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ error: 'Comentario no encontrado' });
 
     const isOwner = String(comment.member) === String(req.user._id);
@@ -187,7 +191,7 @@ export async function deleteComment(req, res, next) {
       return res.status(403).json({ error: 'Solo puedes borrar tus comentarios' });
     }
 
-    await comment.deleteOne();
+    await Comment.deleteMany({ $or: [{ _id: comment._id }, { parentId: comment._id }] });
     res.json({ ok: true });
   } catch (err) {
     next(err);

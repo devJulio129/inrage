@@ -53,7 +53,9 @@ describe('protected routes', () => {
     ['POST', '/api/classes/000000000000000000000000/reserve'],
     ['GET', '/api/posts'],
     ['PUT', '/api/reactions'],
-    ['POST', '/api/reactions/summary']
+    ['POST', '/api/reactions/summary'],
+    ['GET', '/api/comments'],
+    ['POST', '/api/comments']
   ];
 
   for (const [method, route] of protectedRoutes) {
