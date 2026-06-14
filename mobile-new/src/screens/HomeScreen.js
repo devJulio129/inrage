@@ -13,12 +13,14 @@ import {
   Easing,
   Alert,
   Platform,
-  Linking
+  Linking,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import GymInfo from '../components/GymInfo';
+import Reactions from '../components/Reactions';
 import { fmtSecs } from './ProfileScreen';
 
 // ── "TU WOD": prescripción personalizada a partir de los PRs ─────────
@@ -354,6 +356,7 @@ function WodComments({ workout, user }) {
                 <Text style={styles.commentTime}>{timeAgo(c.createdAt)}</Text>
               </View>
               <Text style={styles.commentText}>{c.text}</Text>
+              <Reactions targetType="comment" targetId={c._id} />
             </View>
             {(own || isAdmin) && (
               <Pressable onPress={() => remove(c)} hitSlop={8} style={styles.commentDelete}>
@@ -395,6 +398,7 @@ function WodComments({ workout, user }) {
 function ClassesSection({ classes, onChanged }) {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
+  const [detail, setDetail] = useState(null); // clase abierta en el modal
 
   async function toggle(c) {
     if (busyId) return;
@@ -412,6 +416,7 @@ function ClassesSection({ classes, onChanged }) {
       if (c.mine) await api.cancelClassReservation(c._id);
       else await api.reserveClass(c._id);
       await onChanged?.();
+      setDetail(null);
     } catch (err) {
       setError(err.message);
       await onChanged?.(); // el cupo pudo cambiar (p. ej. se llenó)
@@ -420,6 +425,8 @@ function ClassesSection({ classes, onChanged }) {
     }
   }
 
+  // Vuelve a leer la clase del prop fresco para que el modal refleje cupos.
+  const liveDetail = detail ? classes.find((c) => c._id === detail._id) || detail : null;
   const groups = groupClassesByDay(classes);
 
   return (
@@ -438,7 +445,7 @@ function ClassesSection({ classes, onChanged }) {
           {list.map((c) => {
             const full = c.spotsLeft === 0 && !c.mine;
             return (
-              <View key={c._id} style={styles.classCard}>
+              <Pressable key={c._id} style={styles.classCard} onPress={() => setDetail(c)}>
                 <Text style={styles.classTime}>{c.time}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.className}>{c.name}</Text>
@@ -449,6 +456,10 @@ function ClassesSection({ classes, onChanged }) {
                         ? 'Clase llena'
                         : `${c.spotsLeft} de ${c.capacity} lugares libres`}
                   </Text>
+                  <View style={styles.classHintRow}>
+                    <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
+                    <Text style={styles.classHint}>Toca para ver de qué trata</Text>
+                  </View>
                 </View>
                 <Pressable
                   onPress={() => toggle(c)}
@@ -463,22 +474,114 @@ function ClassesSection({ classes, onChanged }) {
                     </Text>
                   )}
                 </Pressable>
-              </View>
+              </Pressable>
             );
           })}
         </View>
       ))}
+
+      {/* Detalle de la clase: de qué trata + reservar/cancelar */}
+      <Modal visible={!!liveDetail} transparent animationType="slide" onRequestClose={() => setDetail(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setDetail(null)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            {liveDetail && (() => {
+              const full = liveDetail.spotsLeft === 0 && !liveDetail.mine;
+              return (
+                <>
+                  <View style={styles.modalHandle} />
+                  <Text style={styles.detailDay}>{dayLabel(liveDetail.date)} · {liveDetail.time}</Text>
+                  <Text style={styles.detailName}>{liveDetail.name}</Text>
+                  <View style={styles.detailSpotsRow}>
+                    <Ionicons name="people-outline" size={16} color={colors.accent} />
+                    <Text style={styles.detailSpots}>
+                      {liveDetail.mine ? 'Ya tienes tu lugar' : full ? 'Clase llena' : `${liveDetail.spotsLeft} de ${liveDetail.capacity} lugares libres`}
+                    </Text>
+                  </View>
+                  <Text style={styles.detailBody}>
+                    {liveDetail.description?.trim()
+                      ? liveDetail.description
+                      : 'El gimnasio aún no agregó una descripción para esta clase.'}
+                  </Text>
+                  <Pressable
+                    onPress={() => toggle(liveDetail)}
+                    disabled={(full && !liveDetail.mine) || busyId === liveDetail._id}
+                    style={[styles.detailBtn, liveDetail.mine && styles.detailBtnMine, full && !liveDetail.mine && styles.detailBtnFull]}
+                  >
+                    {busyId === liveDetail._id ? (
+                      <ActivityIndicator color={liveDetail.mine ? colors.accent : '#05230b'} />
+                    ) : (
+                      <Text style={[styles.detailBtnText, liveDetail.mine && { color: colors.accent }, full && !liveDetail.mine && { color: colors.textMuted }]}>
+                        {liveDetail.mine ? 'CANCELAR RESERVA' : full ? 'CLASE LLENA' : 'RESERVAR MI LUGAR'}
+                      </Text>
+                    )}
+                  </Pressable>
+                  {error && <Text style={styles.commentsError}>{error}</Text>}
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 // ── Feed de publicaciones del gimnasio ──────────────────────────────
-function PostCard({ post }) {
+function monthLabel(date) {
+  const s = new Date(date).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1); // "Junio 2026"
+}
+
+function groupPostsByMonth(posts) {
+  const map = new Map();
+  for (const p of posts || []) {
+    const k = monthLabel(p.createdAt);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(p);
+  }
+  return [...map.entries()];
+}
+
+function postThumb(post) {
+  if (post.image) return post.image;
+  const yt = youtubeId(post.videoUrl);
+  return yt ? `https://img.youtube.com/vi/${yt}/hqdefault.jpg` : null;
+}
+
+// Tarjeta colapsada del feed: fecha, título, adelanto y miniatura.
+function PostCardCompact({ post, onPress }) {
+  const thumb = postThumb(post);
+  const preview = (post.body || '').replace(/\s+/g, ' ').trim();
+  return (
+    <Pressable style={styles.postCompact} onPress={onPress}>
+      {thumb ? <Image source={{ uri: thumb }} style={styles.postThumb} /> : (
+        <View style={[styles.postThumb, styles.postThumbEmpty]}>
+          <Ionicons name="megaphone-outline" size={22} color={colors.textMuted} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.postDate}>
+          {new Date(post.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })}
+        </Text>
+        {post.title ? <Text style={styles.postCompactTitle} numberOfLines={1}>{post.title}</Text> : null}
+        {preview ? <Text style={styles.postCompactPreview} numberOfLines={2}>{preview}</Text> : null}
+        <View style={styles.postBadges}>
+          {post.videoUrl ? <Text style={styles.postBadge}>▶ Video</Text> : null}
+          {post.linkUrl ? <Text style={styles.postBadge}>🔗 Enlace</Text> : null}
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+// Vista completa de una publicación (dentro del modal).
+function PostDetail({ post }) {
   const yt = youtubeId(post.videoUrl);
   return (
-    <View style={styles.postCard}>
+    <>
       <Text style={styles.postDate}>
-        {new Date(post.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })} · {timeAgo(post.createdAt)}
+        {new Date(post.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} · {timeAgo(post.createdAt)}
       </Text>
       {post.title ? <Text style={styles.postTitle}>{post.title}</Text> : null}
       {post.body ? <Text style={styles.postBody}>{post.body}</Text> : null}
@@ -486,10 +589,7 @@ function PostCard({ post }) {
       {post.videoUrl ? (
         <Pressable style={styles.postVideo} onPress={() => Linking.openURL(post.videoUrl)}>
           {yt ? (
-            <Image
-              source={{ uri: `https://img.youtube.com/vi/${yt}/hqdefault.jpg` }}
-              style={styles.postVideoThumb}
-            />
+            <Image source={{ uri: `https://img.youtube.com/vi/${yt}/hqdefault.jpg` }} style={styles.postVideoThumb} />
           ) : null}
           <View style={styles.postVideoRow}>
             <Ionicons name="play-circle" size={20} color={colors.accent} />
@@ -497,23 +597,104 @@ function PostCard({ post }) {
           </View>
         </Pressable>
       ) : null}
-    </View>
+      {post.linkUrl ? (
+        <Pressable style={styles.postLink} onPress={() => Linking.openURL(post.linkUrl)}>
+          <Ionicons name="link-outline" size={18} color={colors.beige} />
+          <Text style={styles.postLinkText}>Abrir enlace</Text>
+        </Pressable>
+      ) : null}
+      <Reactions targetType="post" targetId={post._id} />
+    </>
+  );
+}
+
+// Visor a pantalla completa: archivo por mes/año ↔ detalle de una publicación.
+function PostsViewer({ visible, posts, initial, onClose }) {
+  const [selected, setSelected] = useState(initial);
+
+  useEffect(() => { setSelected(initial); }, [initial, visible]);
+
+  const groups = groupPostsByMonth(posts);
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.viewerRoot}>
+        <View style={styles.viewerHeader}>
+          {selected ? (
+            <Pressable onPress={() => setSelected(null)} hitSlop={8} style={styles.viewerBack}>
+              <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+              <Text style={styles.viewerBackText}>Publicaciones</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.viewerTitle}>PUBLICACIONES</Text>
+          )}
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.viewerContent}>
+          {selected ? (
+            <PostDetail post={selected} />
+          ) : (
+            groups.map(([month, list]) => (
+              <View key={month} style={{ marginBottom: spacing.lg }}>
+                <Text style={styles.archiveMonth}>{month}</Text>
+                {list.map((p) => (
+                  <PostCardCompact key={p._id} post={p} onPress={() => setSelected(p)} />
+                ))}
+              </View>
+            ))
+          )}
+          {!selected && groups.length === 0 && (
+            <Text style={styles.commentsEmpty}>Aún no hay publicaciones.</Text>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
 function PostsFeed({ posts }) {
+  const [viewer, setViewer] = useState({ open: false, initial: null });
   if (!posts || posts.length === 0) return null;
+  const preview = posts.slice(0, 3);
+
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <SectionHeader>EL BOX PUBLICA</SectionHeader>
-      {posts.map((p) => <PostCard key={p._id} post={p} />)}
+      <View style={styles.feedHeader}>
+        <SectionHeader>EL BOX PUBLICA</SectionHeader>
+        {posts.length > 3 && (
+          <Pressable onPress={() => setViewer({ open: true, initial: null })} hitSlop={6}>
+            <Text style={styles.verTodas}>Ver todas</Text>
+          </Pressable>
+        )}
+      </View>
+      {preview.map((p) => (
+        <PostCardCompact key={p._id} post={p} onPress={() => setViewer({ open: true, initial: p })} />
+      ))}
+      <PostsViewer
+        visible={viewer.open}
+        posts={posts}
+        initial={viewer.initial}
+        onClose={() => setViewer({ open: false, initial: null })}
+      />
     </View>
   );
 }
 
-// Info del gimnasio como pie de página compacto.
+// @usuario o URL completa → URL de Instagram.
+function instagramUrl(handle) {
+  const h = String(handle || '').trim();
+  if (!h) return null;
+  if (/^https?:\/\//i.test(h)) return h;
+  return `https://instagram.com/${h.replace(/^@/, '')}`;
+}
+
+// Info del gimnasio como pie de página compacto. El Instagram es tocable.
 function GymFooter({ info }) {
   if (!info) return null;
+  const ig = instagramUrl(info.instagram);
   return (
     <View style={styles.footer}>
       <Text style={styles.footerBrand}>{(info.name || 'InRage CrossFit').toUpperCase()}</Text>
@@ -521,8 +702,12 @@ function GymFooter({ info }) {
         <Text key={i} style={styles.footerLine}>{s.day} · {s.hours}</Text>
       ))}
       {info.address ? <Text style={styles.footerLine}>{info.address}</Text> : null}
-      {(info.phone || info.instagram) ? (
-        <Text style={styles.footerLine}>{[info.phone, info.instagram].filter(Boolean).join(' · ')}</Text>
+      {info.phone ? <Text style={styles.footerLine}>{info.phone}</Text> : null}
+      {ig ? (
+        <Pressable style={styles.footerIg} onPress={() => Linking.openURL(ig)} hitSlop={6}>
+          <Ionicons name="logo-instagram" size={15} color={colors.accent} />
+          <Text style={styles.footerIgText}>{info.instagram}</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -860,6 +1045,7 @@ export function WodScreen({ user }) {
                 <Text style={styles.title}>{workout.title}</Text>
                 <View style={styles.divider} />
                 <Text style={styles.description}>{workout.description}</Text>
+                <Reactions targetType="workout" targetId={workout._id} />
               </View>
               <PersonalizedWod description={workout.description} prs={prs} />
               <WodComments workout={workout} user={user} />
@@ -890,6 +1076,7 @@ export function WodScreen({ user }) {
                     {open && (
                       <View style={styles.histBody}>
                         <Text style={styles.description}>{w.description}</Text>
+                        <Reactions targetType="workout" targetId={w._id} />
                         <PersonalizedWod description={w.description} prs={prs} />
                         <WodComments workout={w} user={user} />
                       </View>
@@ -1081,6 +1268,8 @@ const styles = StyleSheet.create({
   },
   className: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
   classSpots: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
+  classHintRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  classHint: { color: colors.textMuted, fontSize: 10.5, opacity: 0.8 },
   classBtn: {
     backgroundColor: colors.accent,
     borderRadius: 18,
@@ -1099,15 +1288,51 @@ const styles = StyleSheet.create({
   classBtnTextMine: { color: colors.accent },
   classBtnTextFull: { color: colors.textMuted },
 
+  /* Modal de detalle de clase */
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    padding: spacing.lg, paddingBottom: spacing.xl,
+    borderTopWidth: 1, borderColor: 'rgba(70,226,42,0.3)'
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border,
+    alignSelf: 'center', marginBottom: spacing.md
+  },
+  detailDay: { color: colors.accent, fontFamily: type.mono, fontSize: 12, letterSpacing: 2 },
+  detailName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 34, letterSpacing: 1, marginTop: 2 },
+  detailSpotsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.sm },
+  detailSpots: { color: colors.textPrimary, fontSize: 13, fontWeight: '700' },
+  detailBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 22, marginTop: spacing.md, marginBottom: spacing.lg },
+  detailBtn: {
+    backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: 15, alignItems: 'center',
+    shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 0 }
+  },
+  detailBtnMine: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(70,226,42,0.45)' },
+  detailBtnFull: { backgroundColor: colors.surfaceAlt },
+  detailBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 18, letterSpacing: 1.5 },
+
   /* Feed de publicaciones */
-  postCard: {
+  feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  verTodas: { color: colors.accent, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm },
+  postCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm + 2
+    padding: spacing.sm + 2,
+    marginBottom: spacing.sm
   },
+  postThumb: { width: 58, height: 58, borderRadius: radii.sm, backgroundColor: colors.surfaceAlt },
+  postThumbEmpty: { alignItems: 'center', justifyContent: 'center' },
+  postCompactTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginTop: 1 },
+  postCompactPreview: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
+  postBadges: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  postBadge: { color: colors.accent, fontSize: 11, fontWeight: '700' },
   postDate: { color: colors.textMuted, fontSize: 11, marginBottom: 6 },
   postTitle: { color: colors.textPrimary, fontFamily: type.display, fontSize: 22, letterSpacing: 1, marginBottom: 4 },
   postBody: { color: colors.textPrimary, fontSize: 14, lineHeight: 21, marginBottom: spacing.sm },
@@ -1133,6 +1358,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md
   },
   postVideoText: { color: colors.accent, fontSize: 14, fontWeight: '800' },
+  postLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radii.md,
+    paddingVertical: 11, paddingHorizontal: spacing.md, marginTop: spacing.sm
+  },
+  postLinkText: { color: colors.beige, fontSize: 14, fontWeight: '700' },
+
+  /* Visor de publicaciones (archivo + detalle) */
+  viewerRoot: { flex: 1, backgroundColor: colors.base },
+  viewerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border
+  },
+  viewerTitle: { color: colors.textPrimary, fontFamily: type.display, fontSize: 26, letterSpacing: 1.5 },
+  viewerBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  viewerBackText: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  viewerContent: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  archiveMonth: {
+    color: colors.accent, fontFamily: type.mono, fontSize: 12, letterSpacing: 2,
+    marginBottom: spacing.sm
+  },
 
   /* Footer compacto con la info del gym */
   footer: {
@@ -1150,6 +1397,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm
   },
   footerLine: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'center' },
+  footerIg: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: spacing.sm,
+    borderWidth: 1, borderColor: 'rgba(70,226,42,0.4)',
+    borderRadius: 16, paddingVertical: 7, paddingHorizontal: 14
+  },
+  footerIgText: { color: colors.accent, fontSize: 13, fontWeight: '700' },
 
   /* Dentro del box */
   statusRow: {

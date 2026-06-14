@@ -149,6 +149,18 @@ export const api = {
   // Publicaciones del gimnasio
   getPosts: () => request('/api/posts'),
 
+  // Reacciones (post / comment / workout)
+  reactSummary: (targetType, ids) =>
+    request('/api/reactions/summary', {
+      method: 'POST',
+      body: JSON.stringify({ targetType, ids })
+    }),
+  react: (targetType, targetId, type) =>
+    request('/api/reactions', {
+      method: 'PUT',
+      body: JSON.stringify({ targetType, targetId, type })
+    }),
+
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),
   checkIn: () => request('/api/attendances/checkin', { method: 'POST' }),
