@@ -270,7 +270,7 @@ export default function App() {
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState(null);
-  const [classForm, setClassForm] = useState({ date: localDayStr(), time: '18:00', name: 'CrossFit', capacity: 12 });
+  const [classForm, setClassForm] = useState({ date: localDayStr(), time: '18:00', name: 'CrossFit', description: '', capacity: 12 });
   const [classSaving, setClassSaving] = useState(false);
   const [classMsg, setClassMsg] = useState(null);
 
@@ -278,7 +278,7 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState(null);
-  const [postForm, setPostForm] = useState({ title: '', body: '', videoUrl: '', image: null });
+  const [postForm, setPostForm] = useState({ title: '', body: '', videoUrl: '', linkUrl: '', image: null });
   const [postSaving, setPostSaving] = useState(false);
   const [postMsg, setPostMsg] = useState(null);
 
@@ -413,7 +413,7 @@ export default function App() {
     api.createPost(postForm)
       .then(() => {
         setPostMsg('Publicado ✓ — ya aparece en el inicio de la app');
-        setPostForm({ title: '', body: '', videoUrl: '', image: null });
+        setPostForm({ title: '', body: '', videoUrl: '', linkUrl: '', image: null });
         fetchPosts();
       })
       .catch(err => setPostMsg('Error: ' + err.message))
@@ -1104,6 +1104,11 @@ export default function App() {
                 {classSaving ? 'Abriendo…' : '+ Abrir'}
               </button>
             </div>
+            <label className="lbl" style={{ marginTop: 12 }}>De qué trata la clase (opcional — se ve al tocar la reserva)</label>
+            <textarea rows={3} maxLength={1000}
+              placeholder="p. ej. Sesión de fuerza: back squat 5x5 + accesorios de core. Llega 10 min antes para calentar."
+              value={classForm.description}
+              onChange={e => setClassForm(p => ({ ...p, description: e.target.value }))} />
             {classMsg && <p className={classMsg.startsWith('Error') ? 'error' : 'ok'}>{classMsg}</p>}
             <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
               Los atletas reservan su lugar desde la app. Abre una clase por cada horario del día.
@@ -1124,6 +1129,7 @@ export default function App() {
                   <div className="class-time">{c.time}</div>
                   <div className="class-info">
                     <h3>{c.name}</h3>
+                    {c.description && <p className="class-desc">{c.description}</p>}
                     <p className="meta">{c.reserved}/{c.capacity} reservados</p>
                     {c.roster?.length > 0 && (
                       <div className="roster">
@@ -1163,6 +1169,9 @@ export default function App() {
             <label className="lbl">Link de video (YouTube, Instagram… — opcional)</label>
             <input placeholder="https://youtube.com/watch?v=…" value={postForm.videoUrl}
               onChange={e => setPostForm(p => ({ ...p, videoUrl: e.target.value }))} />
+            <label className="lbl">Enlace a artículo / publicación (opcional)</label>
+            <input placeholder="https://… (blog, estudio, recurso)" value={postForm.linkUrl}
+              onChange={e => setPostForm(p => ({ ...p, linkUrl: e.target.value }))} />
             <label className="lbl">Imagen (opcional — se comprime sola)</label>
             <input type="file" accept="image/*" onChange={handlePostImage} />
             {postForm.image && (
@@ -1200,6 +1209,11 @@ export default function App() {
               {p.videoUrl && (
                 <a className="post-video" href={p.videoUrl} target="_blank" rel="noreferrer">
                   ▶ Ver video
+                </a>
+              )}
+              {p.linkUrl && (
+                <a className="post-link" href={p.linkUrl} target="_blank" rel="noreferrer">
+                  🔗 Abrir enlace
                 </a>
               )}
             </div>
