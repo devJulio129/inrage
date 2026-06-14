@@ -50,9 +50,53 @@ const MOVEMENTS = [
     ]
   },
   {
-    category: 'Cardio', items: [
+    category: 'Cardio · Distancias', items: [
       { key: 'run_400m', label: '400 m Run', unit: 'time' },
+      { key: 'run_1k', label: '1 km Run', unit: 'time' },
+      { key: 'run_1mile', label: '1 Mile Run', unit: 'time' },
+      { key: 'run_5k', label: '5 km Run', unit: 'time' },
+      { key: 'run_10k', label: '10 km Run', unit: 'time' },
       { key: 'row_500m', label: '500 m Row', unit: 'time' },
+      { key: 'row_2k', label: '2 km Row', unit: 'time' },
+      { key: 'ski_500m', label: '500 m Ski', unit: 'time' },
+      { key: 'ski_1k', label: '1 km Ski', unit: 'time' },
+    ]
+  },
+  {
+    category: 'Cardio · Calorías (1 min)', items: [
+      { key: 'assault_bike_cal', label: 'Assault Bike', unit: 'cal' },
+      { key: 'echo_bike_cal', label: 'Echo Bike', unit: 'cal' },
+      { key: 'bike_erg_cal', label: 'BikeErg', unit: 'cal' },
+      { key: 'row_erg_cal', label: 'Row Erg', unit: 'cal' },
+      { key: 'ski_erg_cal', label: 'SkiErg', unit: 'cal' },
+    ]
+  },
+  {
+    category: 'Tests de Rendimiento', items: [
+      { key: 'cmj', label: 'Salto vertical (CMJ)', unit: 'cm' },
+      { key: 'abalakov', label: 'Salto Abalakov', unit: 'cm' },
+      { key: 'broad_jump', label: 'Salto horizontal', unit: 'cm' },
+      { key: 'med_ball_throw', label: 'Lanzamiento balón', unit: 'm' },
+      { key: 'cooper', label: 'Test de Cooper (12 min)', unit: 'm' },
+      { key: 'vo2max', label: 'VO₂ máx', unit: 'ml' },
+      { key: 'hr_rest', label: 'FC en reposo', unit: 'bpm' },
+      { key: 'hr_max', label: 'FC máxima', unit: 'bpm' },
+      { key: 'hr_recovery', label: 'FC recuperación (1 min)', unit: 'bpm' },
+      { key: 'anaerobic_threshold', label: 'Umbral anaeróbico', unit: 'bpm' },
+    ]
+  },
+  {
+    category: 'Medidas Corporales', items: [
+      { key: 'body_weight', label: 'Peso', unit: 'kg' },
+      { key: 'height', label: 'Estatura', unit: 'cm' },
+      { key: 'body_fat', label: '% de grasa', unit: 'pct' },
+      { key: 'neck', label: 'Cuello', unit: 'cm' },
+      { key: 'chest', label: 'Pecho', unit: 'cm' },
+      { key: 'waist', label: 'Cintura', unit: 'cm' },
+      { key: 'hip', label: 'Cadera', unit: 'cm' },
+      { key: 'arm', label: 'Brazo', unit: 'cm' },
+      { key: 'thigh', label: 'Muslo', unit: 'cm' },
+      { key: 'calf', label: 'Pantorrilla', unit: 'cm' },
     ]
   },
 ];
@@ -69,9 +113,23 @@ export function fmtSecs(s) {
   const secs = Math.round(s % 60);
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
+
+// Sufijo visible por unidad.
+const UNIT_SUFFIX = {
+  kg: 'kg', lb: 'lb', reps: 'reps', cal: 'cal', cm: 'cm',
+  bpm: 'bpm', ml: 'ml/kg/min', pct: '%', m: 'm'
+};
+function unitPlaceholder(unit) {
+  if (unit === 'time') return 'mm:ss';
+  if (unit === 'reps') return 'reps';
+  if (unit === 'kg') return 'kg o lb';
+  return UNIT_SUFFIX[unit] || '';
+}
 export function fmtPR(pr) {
   if (!pr) return '—';
-  return pr.unit === 'time' ? `${fmtSecs(pr.value)} min` : `${pr.value} ${pr.unit}`;
+  if (pr.unit === 'time') return `${fmtSecs(pr.value)} min`;
+  const suffix = UNIT_SUFFIX[pr.unit] || pr.unit;
+  return `${pr.value} ${suffix}`;
 }
 
 export default function ProfileScreen({ user }) {
@@ -82,6 +140,16 @@ export default function ProfileScreen({ user }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState('');
+  // Secciones colapsables: arranca abierta solo la primera.
+  const [openCats, setOpenCats] = useState(() => new Set([MOVEMENTS[0].category]));
+
+  function toggleCat(category) {
+    setOpenCats(prev => {
+      const next = new Set(prev);
+      next.has(category) ? next.delete(category) : next.add(category);
+      return next;
+    });
+  }
 
   useEffect(() => {
     (async () => {
@@ -205,51 +273,62 @@ export default function ProfileScreen({ user }) {
             <Row label="Rol" value={profile?.role === 'admin' ? 'Admin' : 'Atleta'} last />
           </View>
 
-          <Text style={styles.sectionTitle}>Récords Personales</Text>
+          <Text style={styles.sectionTitle}>Récords y Mediciones</Text>
+          <Text style={styles.sectionHint}>Toca una sección para abrirla · toca un valor para editarlo</Text>
 
-          {MOVEMENTS.map(({ category, items }) => (
-            <View key={category} style={styles.prGroup}>
-              <Text style={styles.prCategory}>{category}</Text>
-              {items.map(({ key, label, unit }, idx) => {
-                const pr = prs[key];
-                const isEditing = editingKey === key;
-                const isLast = idx === items.length - 1;
-                return (
-                  <View key={key} style={[styles.prRow, isLast && { borderBottomWidth: 0 }]}>
-                    <Text style={styles.prLabel}>{label}</Text>
-                    {isEditing ? (
-                      <View style={styles.prEditRow}>
-                        <TextInput
-                          style={styles.prInput}
-                          value={editValue}
-                          onChangeText={setEditValue}
-                          keyboardType={unit === 'time' ? 'numbers-and-punctuation' : 'numeric'}
-                          autoFocus
-                          placeholder={unit === 'time' ? 'mm:ss' : unit === 'reps' ? 'reps' : 'kg o lb'}
-                          placeholderTextColor={colors.textMuted}
-                          onSubmitEditing={() => saveEdit(key, unit)}
-                          returnKeyType="done"
-                        />
-                        <Pressable style={styles.prSaveBtn} onPress={() => saveEdit(key, unit)}>
-                          <Text style={styles.prSaveTxt}>✓</Text>
-                        </Pressable>
-                        <Pressable style={styles.prCancelBtn} onPress={() => setEditingKey(null)}>
-                          <Text style={styles.prCancelTxt}>✕</Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <Pressable style={styles.prValueRow} onPress={() => startEdit(key, pr?.value, unit)}>
-                        <Text style={[styles.prValue, !pr && { color: colors.textMuted }]}>
-                          {fmtPR(pr)}
-                        </Text>
-                        <Text style={styles.prEditIcon}>✎</Text>
-                      </Pressable>
-                    )}
+          {MOVEMENTS.map(({ category, items }) => {
+            const open = openCats.has(category);
+            const filled = items.filter(it => prs[it.key]).length;
+            return (
+              <View key={category} style={styles.prGroup}>
+                <Pressable style={styles.prCatHead} onPress={() => toggleCat(category)}>
+                  <Text style={styles.prCategory}>{category}</Text>
+                  <View style={styles.prCatRight}>
+                    <Text style={styles.prCatCount}>{filled}/{items.length}</Text>
+                    <Text style={styles.prChevron}>{open ? '▾' : '▸'}</Text>
                   </View>
-                );
-              })}
-            </View>
-          ))}
+                </Pressable>
+                {open && items.map(({ key, label, unit }, idx) => {
+                  const pr = prs[key];
+                  const isEditing = editingKey === key;
+                  const isLast = idx === items.length - 1;
+                  return (
+                    <View key={key} style={[styles.prRow, isLast && { borderBottomWidth: 0 }]}>
+                      <Text style={styles.prLabel}>{label}</Text>
+                      {isEditing ? (
+                        <View style={styles.prEditRow}>
+                          <TextInput
+                            style={styles.prInput}
+                            value={editValue}
+                            onChangeText={setEditValue}
+                            keyboardType={unit === 'time' ? 'numbers-and-punctuation' : 'numeric'}
+                            autoFocus
+                            placeholder={unitPlaceholder(unit)}
+                            placeholderTextColor={colors.textMuted}
+                            onSubmitEditing={() => saveEdit(key, unit)}
+                            returnKeyType="done"
+                          />
+                          <Pressable style={styles.prSaveBtn} onPress={() => saveEdit(key, unit)}>
+                            <Text style={styles.prSaveTxt}>✓</Text>
+                          </Pressable>
+                          <Pressable style={styles.prCancelBtn} onPress={() => setEditingKey(null)}>
+                            <Text style={styles.prCancelTxt}>✕</Text>
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <Pressable style={styles.prValueRow} onPress={() => startEdit(key, pr?.value, unit)}>
+                          <Text style={[styles.prValue, !pr && { color: colors.textMuted }]}>
+                            {fmtPR(pr)}
+                          </Text>
+                          <Text style={styles.prEditIcon}>✎</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
         </>
       )}
 
@@ -322,18 +401,26 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     color: colors.textPrimary, fontFamily: type.display, fontSize: 24, letterSpacing: 1,
-    alignSelf: 'flex-start', marginBottom: spacing.md
+    alignSelf: 'flex-start', marginBottom: 2
+  },
+  sectionHint: {
+    color: colors.textMuted, fontSize: 12, alignSelf: 'flex-start', marginBottom: spacing.md
   },
   prGroup: {
     width: '100%', backgroundColor: colors.surface,
-    borderRadius: radii.md, paddingHorizontal: spacing.lg, marginBottom: spacing.md
+    borderRadius: radii.md, paddingHorizontal: spacing.lg, marginBottom: spacing.sm + 2
+  },
+  prCatHead: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14
   },
   prCategory: {
-    color: colors.accent, fontSize: 11, fontWeight: '800',
-    letterSpacing: 1, textTransform: 'uppercase',
-    paddingTop: 12, paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+    color: colors.accent, fontSize: 12, fontWeight: '800',
+    letterSpacing: 1, textTransform: 'uppercase'
   },
+  prCatRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  prCatCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  prChevron: { color: colors.textMuted, fontSize: 12 },
   prRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 12, minHeight: 48,

@@ -13,9 +13,10 @@ const prSchema = new mongoose.Schema({
   //  bpm        → frecuencia cardíaca
   //  ml         → VO2máx (ml/kg/min)
   //  pct        → % de grasa corporal
+  //  m          → metros (Cooper, lanzamiento)
   unit: {
     type: String,
-    enum: ['kg', 'lb', 'reps', 'time', 'cal', 'cm', 'bpm', 'ml', 'pct'],
+    enum: ['kg', 'lb', 'reps', 'time', 'cal', 'cm', 'bpm', 'ml', 'pct', 'm'],
     default: 'kg'
   },
   setAt: { type: Date, default: Date.now },

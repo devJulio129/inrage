@@ -35,18 +35,19 @@ const PR_LABELS = {
   bar_muscle_ups: 'Bar Muscle Ups', handstand_push_ups: 'HSPU', toes_to_bar: 'Toes to Bar',
   push_ups: 'Push Ups', ring_dips: 'Ring Dips', double_unders: 'Double Unders',
   wall_balls: 'Wall Balls', pistols: 'Pistols', sit_ups: 'Sit Ups', burpees: 'Burpees',
-  run_400m: '400 m Run', row_500m: '500 m Row'
+  run_400m: '400 m Run', row_500m: '500 m Row', ski_500m: '500 m Ski'
 };
 
 // Catálogo de movimientos del pizarrón (inglés + sinónimos en español).
 // El orden importa: lo específico va antes de lo genérico.
 const MOVES = [
-  // Cardio por calorías → solo intensidad (RPE), no requiere PR.
-  { re: /cal\b.*(row|bike|ski|assault|echo)|(row|bike|ski|assault|echo).*\bcal/, kind: 'rpe' },
-  { re: /(assault|echo)\s*bike|bike\s*erg|\bbike\b|\bski\b/, kind: 'rpe' },
-  // Cardio por metros → ritmo según el PR de referencia.
-  { re: /run|carrera|corre/, key: 'run_400m', kind: 'run', base: 400 },
-  { re: /row|remo/, key: 'row_500m', kind: 'run', base: 500 },
+  // Cardio por calorías → cadencia objetivo, no requiere PR.
+  { re: /(assault|echo)\s*bike|bike\s*erg|\bbike\b/, kind: 'bike' },
+  { re: /cal\b.*(row|ski)|(row|ski).*\bcal/, kind: 'erg' },
+  // Cardio por metros → ritmo + cadencia según el PR de referencia.
+  { re: /run|carrera|corre/, key: 'run_400m', kind: 'run', base: 400, cadence: 'run' },
+  { re: /\bski\b|skierg/, key: 'ski_500m', kind: 'run', base: 500, cadence: 'stroke' },
+  { re: /row|remo/, key: 'row_500m', kind: 'run', base: 500, cadence: 'stroke' },
   // Halterofilia y fuerza (peso) — específico primero.
   { re: /power\s*snatch/, key: 'power_snatch', kind: 'weight' },
   { re: /snatch|arrancada/, key: 'snatch', kind: 'weight' },
@@ -86,12 +87,22 @@ function matchMovement(text) {
   return null;
 }
 
-function rpeForPct(pct) {
-  if (pct >= 90) return 'RPE 9–10';
-  if (pct >= 80) return 'RPE 8–9';
-  if (pct >= 70) return 'RPE 7–8';
-  if (pct >= 60) return 'RPE 6–7';
-  return 'RPE 5–6';
+// Cadencia objetivo (pacing) según la intensidad. Más legible que el RPE:
+// le dice al atleta a qué ritmo de pasos/strokes/rpm debería ir.
+function runCadence(pct) {
+  if (pct >= 85) return '180–190 ppm';
+  if (pct >= 70) return '170–180 ppm';
+  return '160–170 ppm';
+}
+function strokeCadence(pct) {
+  if (pct >= 85) return '30–34 s/min';
+  if (pct >= 70) return '26–30 s/min';
+  return '22–26 s/min';
+}
+function bikeCadence(pct) {
+  if (pct >= 85) return '70–80 rpm';
+  if (pct >= 70) return '60–70 rpm';
+  return '55–65 rpm';
 }
 
 function personalizeLine(line, prs) {
@@ -104,9 +115,12 @@ function personalizeLine(line, prs) {
 
   const base = { line: line.trim(), key: mov.key };
 
-  // Calorías en máquina: el % se traduce directo a intensidad percibida.
-  if (mov.kind === 'rpe') {
-    return { ...base, rx: rpeForPct(pct), hint: 'intensidad sugerida' };
+  // Máquinas por calorías: cadencia objetivo según intensidad (sin PR).
+  if (mov.kind === 'bike') {
+    return { ...base, rx: bikeCadence(pct), hint: 'cadencia sugerida' };
+  }
+  if (mov.kind === 'erg') {
+    return { ...base, rx: strokeCadence(pct), hint: 'cadencia sugerida' };
   }
 
   const pr = prs[mov.key];
@@ -130,11 +144,13 @@ function personalizeLine(line, prs) {
     return { ...base, rx: `${rounded} ${pr.unit}`, hint: `PR: ${pr.value} ${pr.unit}` };
   }
   if (mov.kind === 'run') {
-    // Ritmo del PR de referencia escalado a la distancia y a la intensidad.
+    // Ritmo del PR de referencia escalado a la distancia y a la intensidad,
+    // más la cadencia objetivo (pasos o strokes por minuto).
     const target = (pr.value * (qty / mov.base)) / (pct / 100);
+    const cad = mov.cadence === 'stroke' ? strokeCadence(pct) : runCadence(pct);
     return {
       ...base,
-      rx: `≈ ${fmtSecs(target)} · ${rpeForPct(pct)}`,
+      rx: `≈ ${fmtSecs(target)} · ${cad}`,
       hint: `${mov.base} m: ${fmtSecs(pr.value)}`
     };
   }
