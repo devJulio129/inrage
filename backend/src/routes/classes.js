@@ -51,7 +51,7 @@ router.get('/', protect, async (req, res, next) => {
 // POST /api/classes  (admin) — abre una clase con N lugares.
 router.post('/', protect, adminOnly, async (req, res, next) => {
   try {
-    const { date, time, name } = req.body;
+    const { date, time, name, description } = req.body;
     const capacity = Number(req.body.capacity);
     if (!date || !time || !capacity || capacity < 1) {
       return res.status(400).json({ error: 'Fecha, hora y cupo son obligatorios' });
@@ -67,6 +67,7 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
       date: day,
       time: String(time).trim(),
       name: (name || 'CrossFit').trim(),
+      description: (description || '').trim(),
       capacity: Math.min(capacity, 100)
     });
     res.status(201).json(gymClass);

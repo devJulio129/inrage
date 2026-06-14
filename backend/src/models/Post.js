@@ -8,6 +8,7 @@ const postSchema = new mongoose.Schema(
     body: { type: String, trim: true, maxlength: 3000 },
     image: { type: String },
     videoUrl: { type: String, trim: true, maxlength: 500 },
+    linkUrl: { type: String, trim: true, maxlength: 500 }, // artículo / enlace externo
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Member' }
   },
   { timestamps: true }

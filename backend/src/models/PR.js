@@ -4,8 +4,20 @@ const prSchema = new mongoose.Schema({
   member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
   movement: { type: String, required: true, trim: true },
   value: { type: Number, required: true },
-  // 'time' = segundos (p. ej. récord de 400 m); el cliente lo muestra mm:ss.
-  unit: { type: String, enum: ['kg', 'lb', 'reps', 'time'], default: 'kg' },
+  // Unidades soportadas:
+  //  kg/lb      → cargas
+  //  reps       → gimnasia / repeticiones
+  //  time       → segundos (el cliente lo muestra mm:ss): distancias de cardio
+  //  cal        → calorías en máquina (assault/echo/row/ski)
+  //  cm         → altura de salto, medidas corporales
+  //  bpm        → frecuencia cardíaca
+  //  ml         → VO2máx (ml/kg/min)
+  //  pct        → % de grasa corporal
+  unit: {
+    type: String,
+    enum: ['kg', 'lb', 'reps', 'time', 'cal', 'cm', 'bpm', 'ml', 'pct'],
+    default: 'kg'
+  },
   setAt: { type: Date, default: Date.now },
 });
 

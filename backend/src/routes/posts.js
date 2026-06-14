@@ -26,9 +26,10 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
     const title = (req.body.title || '').trim();
     const body = (req.body.body || '').trim();
     const videoUrl = (req.body.videoUrl || '').trim();
+    const linkUrl = (req.body.linkUrl || '').trim();
     const image = req.body.image;
 
-    if (!body && !image && !videoUrl) {
+    if (!body && !image && !videoUrl && !linkUrl) {
       return res.status(400).json({ error: 'La publicación está vacía' });
     }
     if (image && (typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 400_000)) {
@@ -37,8 +38,11 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
     if (videoUrl && !/^https?:\/\/\S+$/.test(videoUrl)) {
       return res.status(400).json({ error: 'El link del video debe empezar con http(s)://' });
     }
+    if (linkUrl && !/^https?:\/\/\S+$/.test(linkUrl)) {
+      return res.status(400).json({ error: 'El enlace debe empezar con http(s)://' });
+    }
 
-    const post = await Post.create({ title, body, image, videoUrl, createdBy: req.user._id });
+    const post = await Post.create({ title, body, image, videoUrl, linkUrl, createdBy: req.user._id });
     res.status(201).json(await post.populate('createdBy', 'name'));
   } catch (err) {
     next(err);
