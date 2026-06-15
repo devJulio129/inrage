@@ -50,6 +50,27 @@ router.post('/summary', protect, async (req, res, next) => {
   }
 });
 
+// GET /api/reactions/who?targetType=&targetId=  — quién reaccionó y con qué.
+router.get('/who', protect, async (req, res, next) => {
+  try {
+    const { targetType, targetId } = req.query;
+    if (!REACTION_TARGETS.includes(targetType) || !mongoose.isValidObjectId(targetId)) {
+      return res.status(400).json({ error: 'Parámetros inválidos' });
+    }
+    const rows = await Reaction.find({ targetType, targetId })
+      .sort({ createdAt: 1 })
+      .populate('member', 'name avatar')
+      .lean();
+    res.json(rows.map((r) => ({
+      type: r.type,
+      name: r.member?.name || 'Atleta',
+      avatar: r.member?.avatar || null
+    })));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/reactions  — body { targetType, targetId, type }
 // Alterna: misma reacción = la quita; distinta = la cambia; ninguna = la crea.
 router.put('/', protect, async (req, res, next) => {
