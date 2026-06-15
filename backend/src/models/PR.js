@@ -16,8 +16,8 @@ const prSchema = new mongoose.Schema({
   //  m          → metros (Cooper, lanzamiento)
   unit: {
     type: String,
-    enum: ['kg', 'lb', 'reps', 'time', 'cal', 'cm', 'bpm', 'ml', 'pct', 'm'],
-    default: 'kg'
+    enum: ['lb', 'kg', 'reps', 'time', 'cal', 'cm', 'bpm', 'ml', 'pct', 'm'],
+    default: 'lb'
   },
   setAt: { type: Date, default: Date.now },
 });

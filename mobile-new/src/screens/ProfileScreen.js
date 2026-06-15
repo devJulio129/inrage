@@ -13,24 +13,24 @@ import { api } from '../api/client';
 const MOVEMENTS = [
   {
     category: 'Olympic Lifting', items: [
-      { key: 'snatch', label: 'Snatch', unit: 'kg' },
-      { key: 'power_snatch', label: 'Power Snatch', unit: 'kg' },
-      { key: 'clean', label: 'Clean', unit: 'kg' },
-      { key: 'power_clean', label: 'Power Clean', unit: 'kg' },
-      { key: 'clean_and_jerk', label: 'Clean & Jerk', unit: 'kg' },
-      { key: 'jerk', label: 'Jerk', unit: 'kg' },
+      { key: 'snatch', label: 'Snatch', unit: 'lb' },
+      { key: 'power_snatch', label: 'Power Snatch', unit: 'lb' },
+      { key: 'clean', label: 'Clean', unit: 'lb' },
+      { key: 'power_clean', label: 'Power Clean', unit: 'lb' },
+      { key: 'clean_and_jerk', label: 'Clean & Jerk', unit: 'lb' },
+      { key: 'jerk', label: 'Jerk', unit: 'lb' },
     ]
   },
   {
     category: 'Strength', items: [
-      { key: 'back_squat', label: 'Back Squat', unit: 'kg' },
-      { key: 'front_squat', label: 'Front Squat', unit: 'kg' },
-      { key: 'overhead_squat', label: 'Overhead Squat', unit: 'kg' },
-      { key: 'deadlift', label: 'Deadlift', unit: 'kg' },
-      { key: 'bench_press', label: 'Bench Press', unit: 'kg' },
-      { key: 'overhead_press', label: 'Strict Press', unit: 'kg' },
-      { key: 'push_press', label: 'Push Press', unit: 'kg' },
-      { key: 'thruster', label: 'Thruster', unit: 'kg' },
+      { key: 'back_squat', label: 'Back Squat', unit: 'lb' },
+      { key: 'front_squat', label: 'Front Squat', unit: 'lb' },
+      { key: 'overhead_squat', label: 'Overhead Squat', unit: 'lb' },
+      { key: 'deadlift', label: 'Deadlift', unit: 'lb' },
+      { key: 'bench_press', label: 'Bench Press', unit: 'lb' },
+      { key: 'overhead_press', label: 'Strict Press', unit: 'lb' },
+      { key: 'push_press', label: 'Push Press', unit: 'lb' },
+      { key: 'thruster', label: 'Thruster', unit: 'lb' },
     ]
   },
   {
