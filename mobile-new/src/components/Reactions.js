@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
+import Avatar from './Avatar';
 
 // Las 7 reacciones de InRage. El emoji es grande y siempre va con su nombre
 // para que se entienda qué significa cada una.
@@ -23,6 +24,7 @@ export default function Reactions({ targetType, targetId, initial = null, compac
   const [summary, setSummary] = useState(initial); // { counts, total, mine }
   const [picker, setPicker] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [who, setWho] = useState(null); // null = cerrado; [] = cargando/lista
 
   useEffect(() => {
     if (initial) return;
@@ -44,8 +46,19 @@ export default function Reactions({ targetType, targetId, initial = null, compac
     }
   }
 
+  async function openWho() {
+    setWho({ loading: true, list: [] });
+    try {
+      const list = await api.reactWho(targetType, targetId);
+      setWho({ loading: false, list });
+    } catch {
+      setWho({ loading: false, list: [] });
+    }
+  }
+
   const counts = summary?.counts || {};
   const mine = summary?.mine || null;
+  const total = summary?.total || 0;
   // Tipos presentes, ordenados por el orden canónico de REACTIONS.
   const present = REACTIONS.filter((r) => counts[r.type] > 0);
 
@@ -74,6 +87,37 @@ export default function Reactions({ targetType, targetId, initial = null, compac
           <Text style={[styles.chipCount, mine === r.type && styles.chipCountMine]}>{counts[r.type]}</Text>
         </Pressable>
       ))}
+
+      {total > 0 && (
+        <Pressable onPress={openWho} style={styles.whoBtn} hitSlop={6}>
+          <Text style={styles.whoBtnText}>Ver quién</Text>
+        </Pressable>
+      )}
+
+      {/* Hoja: quién reaccionó (nombres agrupados por reacción) */}
+      <Modal visible={!!who} transparent animationType="fade" onRequestClose={() => setWho(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setWho(null)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Reaccionaron</Text>
+            {who?.loading ? (
+              <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.lg }} />
+            ) : who?.list?.length ? (
+              <ScrollView style={{ maxHeight: 360 }}>
+                {who.list.map((p, i) => (
+                  <View key={i} style={styles.whoRow}>
+                    <Avatar uri={p.avatar} name={p.name} size={34} />
+                    <Text style={styles.whoName}>{p.name}</Text>
+                    <Text style={styles.whoEmoji}>{BY_TYPE[p.type]?.emoji}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.whoEmpty}>Nadie todavía.</Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={picker} transparent animationType="fade" onRequestClose={() => setPicker(false)}>
         <Pressable style={styles.backdrop} onPress={() => setPicker(false)}>
@@ -120,6 +164,17 @@ const styles = StyleSheet.create({
   chipEmoji: { fontSize: 16 },
   chipCount: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
   chipCountMine: { color: colors.accent },
+
+  whoBtn: { paddingHorizontal: 6, paddingVertical: 5 },
+  whoBtnText: { color: colors.textMuted, fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  whoRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border
+  },
+  whoName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', flex: 1 },
+  whoEmoji: { fontSize: 22 },
+  whoEmpty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginVertical: spacing.lg },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {

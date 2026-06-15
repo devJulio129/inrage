@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from './api';
+import MessagesPanel from './MessagesPanel';
 
 const EMPTY_FORM = {
   name: '', email: '', password: '', phone: '', birthDate: '', gender: '', role: 'athlete', joinedAt: '',
@@ -168,6 +169,7 @@ const ICON_PATHS = {
   clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
   megaphone: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
+  mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
 };
 
@@ -190,6 +192,7 @@ const NAV_ITEMS = [
   { id: 'wod', label: 'WOD del día', icon: 'clipboard' },
   { id: 'classes', label: 'Clases', icon: 'calendar' },
   { id: 'posts', label: 'Publicaciones', icon: 'megaphone' },
+  { id: 'messages', label: 'Mensajes', icon: 'mail' },
   { id: 'info', label: 'Gimnasio', icon: 'home' },
   { id: 'logs', label: 'Accesos', icon: 'clock' },
 ];
@@ -223,6 +226,7 @@ function eventBadge(event) {
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [tab, setTab] = useState('athletes');
+  const [msgMemberId, setMsgMemberId] = useState(null);
 
   // Auth
   const [email, setEmail] = useState('');
@@ -695,7 +699,7 @@ export default function App() {
             <button
               key={item.id}
               className={tab === item.id ? 'nav-item active' : 'nav-item'}
-              onClick={() => setTab(item.id)}
+              onClick={() => { if (item.id === 'messages') setMsgMemberId(null); setTab(item.id); }}
             >
               <Icon name={item.icon} />
               <span className="nav-label">{item.label}</span>
@@ -855,6 +859,7 @@ export default function App() {
                   {member.role !== 'admin' && member.status === 'pending' && (
                     <button className="btn-primary btn-sm" onClick={() => handleApprove(member)}>Dar de alta</button>
                   )}
+                  <button className="btn-ghost" onClick={() => { setMsgMemberId(member._id); setTab('messages'); }}>Mensaje</button>
                   <button className="btn-ghost" onClick={() => openEdit(member)}>Editar</button>
                   <button className="btn-danger" onClick={() => handleDelete(member)}>Eliminar</button>
                 </div>
@@ -1232,6 +1237,11 @@ export default function App() {
             </div>
           ))}
         </section>
+      )}
+
+      {/* ── MENSAJES (INBOX) TAB ── */}
+      {tab === 'messages' && (
+        <MessagesPanel initialMemberId={msgMemberId} members={members} />
       )}
       </main>
     </div>

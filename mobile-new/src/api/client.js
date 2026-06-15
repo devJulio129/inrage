@@ -160,6 +160,14 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ targetType, targetId, type })
     }),
+  reactWho: (targetType, targetId) =>
+    request(`/api/reactions/who?targetType=${targetType}&targetId=${targetId}`),
+
+  // Mensajería con el gimnasio (hilo propio)
+  getMyMessages: () => request('/api/messages/me'),
+  myUnreadCount: () => request('/api/messages/me/unread'),
+  sendMyMessage: (data) =>
+    request('/api/messages/me', { method: 'POST', body: JSON.stringify(data) }),
 
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),

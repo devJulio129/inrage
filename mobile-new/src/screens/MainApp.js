@@ -9,6 +9,7 @@ import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import HomeScreen, { WodScreen, ClassesScreen } from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
+import MessagesScreen from './MessagesScreen';
 
 const TABS = [
   { key: 'home', label: 'Inicio', icon: 'home-outline', iconActive: 'home' },
@@ -120,7 +121,7 @@ function CompleteProfile({ user, onDone, onSkip }) {
 }
 
 // ── Ajustes ─────────────────────────────────────────────────────────
-function SettingsScreen({ user, onLogout }) {
+function SettingsScreen({ user, onLogout, onOpenMessages, unread }) {
   const initials = (user?.name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const version = Constants.expoConfig?.version || '1.0.0';
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
@@ -146,6 +147,19 @@ function SettingsScreen({ user, onLogout }) {
             {user?.role === 'admin' ? 'ADMIN' : isActive ? 'ACTIVO' : 'PENDIENTE'}
           </Text>
         </View>
+      </View>
+
+      <Text style={st.sectionLabel}>GIMNASIO</Text>
+      <View style={st.group}>
+        <Pressable style={[st.row, st.rowLast]} onPress={onOpenMessages}>
+          <Ionicons name="chatbubbles-outline" size={18} color={colors.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={st.rowTitle}>Mensajes del gimnasio</Text>
+            <Text style={st.rowSub}>Habla directo con el coach</Text>
+          </View>
+          {unread > 0 && <View style={st.unreadDot}><Text style={st.unreadText}>{unread}</Text></View>}
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
       </View>
 
       <Text style={st.sectionLabel}>SESIÓN</Text>
@@ -186,6 +200,7 @@ function SettingsScreen({ user, onLogout }) {
 export default function MainApp({ user, onUserUpdate, onLogout }) {
   const [tab, setTab] = useState('home');
   const [skippedProfile, setSkippedProfile] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   // El login responde sin phone: se refresca el perfil completo UNA vez para
   // saber si de verdad faltan datos (solo pasa con cuentas de Google nuevas).
@@ -197,6 +212,13 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
       .catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Mensajes sin leer del gimnasio (badge). Se refresca al volver a Ajustes.
+  function refreshUnread() {
+    api.myUnreadCount().then((r) => setUnread(r.count || 0)).catch(() => {});
+  }
+  useEffect(() => { refreshUnread(); }, []);
+  useEffect(() => { if (tab === 'settings') refreshUnread(); }, [tab]);
 
   if (user && needsProfileData(user) && !skippedProfile) {
     return (
@@ -215,12 +237,19 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
         {tab === 'classes' && <ClassesScreen user={user} />}
         {tab === 'wod' && <WodScreen user={user} />}
         {tab === 'profile' && <ProfileScreen user={user} />}
-        {tab === 'settings' && <SettingsScreen user={user} onLogout={onLogout} />}
+        {tab === 'settings' && (
+          <SettingsScreen user={user} onLogout={onLogout} unread={unread} onOpenMessages={() => setTab('messages')} />
+        )}
+        {tab === 'messages' && (
+          <MessagesScreen user={user} onBack={() => setTab('settings')} onReadAll={() => setUnread(0)} />
+        )}
       </View>
 
+      {tab !== 'messages' && (
       <View style={styles.tabbar}>
         {TABS.map((t) => {
-          const active = tab === t.key;
+          const active = tab === t.key || (t.key === 'settings' && tab === 'messages');
+          const showBadge = t.key === 'settings' && unread > 0;
           return (
             <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
               <View style={[styles.tabPill, active && styles.tabPillActive]}>
@@ -229,12 +258,14 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
                   size={21}
                   color={active ? colors.accent : colors.textMuted}
                 />
+                {showBadge && <View style={styles.tabBadge} />}
               </View>
               <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{t.label}</Text>
             </Pressable>
           );
         })}
       </View>
+      )}
     </View>
   );
 }
@@ -303,6 +334,11 @@ const st = StyleSheet.create({
   rowTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', flex: 1 },
   rowSub: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   rowValue: { color: colors.textMuted, fontSize: 13 },
+  unreadDot: {
+    minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.accent,
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5
+  },
+  unreadText: { color: '#05230b', fontSize: 11, fontWeight: '900' },
   foot: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: spacing.md }
 });
 
@@ -325,6 +361,11 @@ const styles = StyleSheet.create({
     borderRadius: 16
   },
   tabPillActive: { backgroundColor: 'rgba(70,226,42,0.12)' },
+  tabBadge: {
+    position: 'absolute', top: 2, right: 12,
+    width: 9, height: 9, borderRadius: 5,
+    backgroundColor: colors.accent, borderWidth: 1.5, borderColor: colors.surfaceAlt
+  },
   tabLabel: { fontSize: 10.5, color: colors.textMuted, letterSpacing: 0.4, fontWeight: '600', marginTop: 1 },
   tabLabelActive: { color: colors.accent, fontWeight: '800' }
 });

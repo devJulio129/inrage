@@ -84,4 +84,14 @@ export const api = {
     createPost: (data) =>
         request('/api/posts', { method: 'POST', body: JSON.stringify(data) }),
     deletePost: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
+
+    // Mensajería (inbox por atleta)
+    inbox: () => request('/api/messages/inbox'),
+    thread: (memberId) => request(`/api/messages/member/${memberId}`),
+    sendMessage: (memberId, data) =>
+        request(`/api/messages/member/${memberId}`, { method: 'POST', body: JSON.stringify(data) }),
+
+    // Reacciones — quién reaccionó
+    reactionsWho: (targetType, targetId) =>
+        request(`/api/reactions/who?targetType=${targetType}&targetId=${targetId}`),
 };
