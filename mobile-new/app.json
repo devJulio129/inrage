@@ -13,12 +13,21 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D0D0D"
     },
+    "primaryColor": "#46E22A",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.devjulio129.inrage"
+      "bundleIdentifier": "com.devjulio129.inrage",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "InRage usa tu galería para tu foto de perfil y para adjuntar imágenes en los mensajes con el gimnasio."
+      }
     },
     "android": {
       "package": "com.devjulio129.inrage",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"

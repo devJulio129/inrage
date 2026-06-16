@@ -21,10 +21,22 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "TU_APPLE_ID@ejemplo.com",
+        "ascAppId": "ID_DE_APP_STORE_CONNECT",
+        "appleTeamId": "TU_TEAM_ID"
+      }
+    }
   }
 }
