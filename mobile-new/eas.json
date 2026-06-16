@@ -33,9 +33,8 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "TU_APPLE_ID@ejemplo.com",
-        "ascAppId": "ID_DE_APP_STORE_CONNECT",
-        "appleTeamId": "TU_TEAM_ID"
+        "ascAppId": "6780894506",
+        "appleTeamId": "4LX8S75KZT"
       }
     }
   }
