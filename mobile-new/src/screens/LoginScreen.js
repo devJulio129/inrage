@@ -169,12 +169,16 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
       >
         {/* Brand */}
         <View style={styles.brand}>
+          <View style={styles.brandMark}>
+            <Text style={styles.brandMarkText}>IR</Text>
+          </View>
           <Text style={styles.brandName}>INRAGE</Text>
           <View style={styles.brandLine}>
             <View style={styles.line} />
-            <Text style={styles.brandSub}>CROSSFIT</Text>
+            <Text style={styles.brandSub}>MEMBERS CLUB</Text>
             <View style={styles.line} />
           </View>
+          <Text style={styles.brandCaption}>Training, WODs y reservas en un solo lugar</Text>
         </View>
 
         <View style={styles.card}>
@@ -337,10 +341,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.base
   },
   brand: { alignItems: 'center', marginBottom: spacing.xl },
+  brandMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.32,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8
+  },
+  brandMarkText: {
+    color: colors.accent,
+    fontFamily: type.display,
+    fontSize: 31,
+    letterSpacing: 1
+  },
   brandName: {
     color: colors.ivory,
     fontFamily: type.display,
-    fontSize: 68,
+    fontSize: 72,
     letterSpacing: 4,
     textShadowColor: 'rgba(70,226,42,0.45)',
     textShadowOffset: { width: 0, height: 0 },
@@ -348,6 +374,14 @@ const styles = StyleSheet.create({
   },
   brandLine: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
   brandSub: { color: colors.accent, fontSize: 13, letterSpacing: 8, opacity: 0.9 },
+  brandCaption: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.md,
+    maxWidth: 270,
+    textAlign: 'center'
+  },
 
   card: {
     backgroundColor: colors.surface,

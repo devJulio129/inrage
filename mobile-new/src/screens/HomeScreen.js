@@ -709,12 +709,23 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
       }
     >
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.hello}>{greeting().toUpperCase()} · {formatDate(new Date())}</Text>
-          <Text style={styles.userName}>{firstName(user?.name)}</Text>
+      <View style={styles.hero}>
+        <View style={styles.heroTop}>
+          <View>
+            <Text style={styles.heroKicker}>INRAGE PERFORMANCE</Text>
+            <Text style={styles.hello}>{greeting().toUpperCase()} · {formatDate(new Date())}</Text>
+          </View>
+          <Avatar uri={user?.avatar} name={user?.name} size={46} />
         </View>
-        <Avatar uri={user?.avatar} name={user?.name} size={46} />
+        <Text style={styles.userName}>{firstName(user?.name)}</Text>
+        <View style={styles.heroFooter}>
+          <View style={styles.heroMetric}>
+            <Text style={styles.heroMetricValue}>{inGym ? 'EN BOX' : 'READY'}</Text>
+            <Text style={styles.heroMetricLabel}>{inGym ? 'sesion activa' : 'para entrenar'}</Text>
+          </View>
+          <View style={styles.heroLine} />
+          <Text style={styles.heroCopy}>WOD, clases y comunidad en una experiencia premium.</Text>
+        </View>
       </View>
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
@@ -1028,8 +1039,42 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.base },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
+  hero: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 9
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm
+  },
+  heroKicker: { color: colors.accent, fontSize: 11, letterSpacing: 2.4, fontWeight: '900', marginBottom: 4 },
   hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
-  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 38, letterSpacing: 1, marginTop: 1 },
+  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 46, letterSpacing: 1.4, marginTop: 1 },
+  heroFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border
+  },
+  heroMetric: { minWidth: 72 },
+  heroMetricValue: { color: colors.accent, fontFamily: type.display, fontSize: 22, letterSpacing: 1.2 },
+  heroMetricLabel: { color: colors.textMuted, fontSize: 10, marginTop: -2 },
+  heroLine: { width: 1, alignSelf: 'stretch', backgroundColor: colors.border },
+  heroCopy: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
 
   /* Próxima clase reservada */
   nextClass: {
