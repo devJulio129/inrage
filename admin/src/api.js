@@ -79,6 +79,13 @@ export const api = {
         request('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
     deleteClass: (id) => request(`/api/classes/${id}`, { method: 'DELETE' }),
 
+    // Horario semanal (franjas recurrentes que se materializan en clases)
+    listClassTemplates: () => request('/api/class-templates'),
+    createClassTemplate: (data) =>
+        request('/api/class-templates', { method: 'POST', body: JSON.stringify(data) }),
+    deleteClassTemplate: (id) =>
+        request(`/api/class-templates/${id}`, { method: 'DELETE' }),
+
     // Publicaciones (feed del gimnasio)
     listPosts: () => request('/api/posts'),
     createPost: (data) =>

@@ -295,6 +295,7 @@ input, select, textarea { font-family: inherit; }
 .pill-yellow { background: rgba(242,192,55,0.15); color: var(--yellow); }
 .pill-red    { background: rgba(255,75,75,0.15);  color: var(--red); }
 .pill-blue   { background: rgba(55,199,242,0.15); color: #37C7F2; }
+.pill-apple  { background: rgba(255,255,255,0.12); color: #EDEDED; }
 .pill-pending { background: rgba(242,192,55,0.18); color: var(--yellow); }
 .pill-active  { background: rgba(70,226,42,0.15);  color: var(--green); }
 
@@ -685,6 +686,85 @@ input, select, textarea { font-family: inherit; }
   white-space: nowrap;
 }
 .spots-badge.full { color: var(--red); background: rgba(255,75,75,0.12); }
+.class-info h3 .pill { margin-left: 8px; font-size: 10px; vertical-align: middle; }
+
+/* ───────────── Horario semanal (recurrente) ───────────── */
+.schedule-editor { padding: 22px; margin-bottom: 22px; }
+.schedule-add { margin-bottom: 18px; }
+.weekday-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.weekday-pill {
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.weekday-pill:hover { border-color: var(--accent); color: var(--text); }
+.weekday-pill.on {
+  background: var(--accent);
+  color: #05230b;
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(70,226,42,0.4);
+}
+.schedule-add-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.schedule-add-grid .btn-primary { height: 42px; white-space: nowrap; }
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.week-col {
+  background: rgba(0,0,0,0.18);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+.week-day {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.week-empty { margin: 0; font-size: 12px; color: var(--text-muted); opacity: .7; }
+.week-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  margin-bottom: 7px;
+}
+.week-slot:last-child { margin-bottom: 0; }
+.week-slot-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.week-slot-time { font-family: var(--font-display); font-size: 18px; letter-spacing: 1px; color: var(--text); }
+.week-slot-name { font-size: 11px; color: var(--text-muted); }
+.week-slot-cap { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.week-slot-del {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.week-slot-del:hover { color: var(--red); background: rgba(255,75,75,0.12); }
 
 /* ───────────── Publicaciones (feed) ───────────── */
 .post-card { max-width: 640px; }

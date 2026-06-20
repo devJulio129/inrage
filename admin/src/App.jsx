@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from './api';
 import MessagesPanel from './MessagesPanel';
+import ScheduleEditor from './ScheduleEditor';
 
 const EMPTY_FORM = {
   name: '', email: '', password: '', phone: '', birthDate: '', gender: '', role: 'athlete', joinedAt: '',
@@ -220,6 +221,7 @@ function fileToSmallDataUri(file, maxW = 900, quality = 0.8) {
 function eventBadge(event) {
   if (event === 'register') return <span className="pill pill-yellow">cuenta nueva ✦</span>;
   if (event === 'google') return <span className="pill pill-blue">google ✓</span>;
+  if (event === 'apple') return <span className="pill pill-apple">apple ✓</span>;
   return <span className="pill pill-green">login ✓</span>;
 }
 
@@ -1086,11 +1088,13 @@ export default function App() {
             <button className="btn-ghost" onClick={fetchClasses}>Actualizar</button>
           </div>
 
+          <ScheduleEditor onChanged={fetchClasses} />
+
           <form onSubmit={handleClassSubmit} className="card class-form">
             <div className="class-form-head">
               <div>
-                <h3>Abrir una clase</h3>
-                <p className="muted">Los atletas reservan su lugar desde la app. Abre una por cada horario del día.</p>
+                <h3>Clase suelta (fuera del horario)</h3>
+                <p className="muted">Para un día puntual que no se repite cada semana — un evento, una clase extra. El horario semanal de arriba ya abre las clases normales solo.</p>
               </div>
             </div>
 
@@ -1146,7 +1150,10 @@ export default function App() {
                 <div key={c._id} className="card class-card">
                   <div className="class-time">{c.time}</div>
                   <div className="class-info">
-                    <h3>{c.name}</h3>
+                    <h3>
+                      {c.name}
+                      {c.fromSchedule && <span className="pill pill-blue" title="Generada por el horario semanal">horario</span>}
+                    </h3>
                     {c.description && <p className="class-desc">{c.description}</p>}
                     <p className="meta">{c.reserved}/{c.capacity} reservados</p>
                     {c.roster?.length > 0 && (

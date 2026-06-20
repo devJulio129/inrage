@@ -13,6 +13,7 @@ import statsRoutes from './routes/stats.js';
 import gymInfoRoutes from './routes/gymInfo.js';
 import prRoutes from './routes/prs.js';
 import classRoutes from './routes/classes.js';
+import classTemplateRoutes from './routes/classTemplates.js';
 import postRoutes from './routes/posts.js';
 import reactionRoutes from './routes/reactions.js';
 import commentRoutes from './routes/comments.js';
@@ -63,6 +64,7 @@ export function createApp() {
   app.use('/api/gym-info', gymInfoRoutes);
   app.use('/api/prs', prRoutes);
   app.use('/api/classes', classRoutes);
+  app.use('/api/class-templates', classTemplateRoutes);
   app.use('/api/posts', postRoutes);
   app.use('/api/reactions', reactionRoutes);
   app.use('/api/comments', commentRoutes);

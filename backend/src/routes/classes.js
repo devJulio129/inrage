@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import { GymClass } from '../models/GymClass.js';
+import { ensureScheduledClasses } from '../services/classSchedule.js';
 
 const router = Router();
 
@@ -16,6 +17,16 @@ function startOfDay(d = new Date()) {
 // El cliente descarta los días ya pasados en SU zona horaria.
 router.get('/', protect, async (req, res, next) => {
   try {
+    // Materializa las clases del horario semanal que falten (idempotente, casi
+    // siempre no-op). Así la reserva siempre muestra la semana completa sin que
+    // el coach tenga que abrir cada clase a mano.
+    try {
+      await ensureScheduledClasses();
+    } catch (genErr) {
+      // Que un fallo del materializador no tire la lectura de clases ya creadas.
+      console.warn('[classes] ensureScheduledClasses failed:', genErr.message);
+    }
+
     const from = startOfDay();
     from.setDate(from.getDate() - 1);
     const to = new Date(from);
@@ -38,6 +49,7 @@ router.get('/', protect, async (req, res, next) => {
         capacity: c.capacity,
         reserved: c.reservations.length,
         spotsLeft: Math.max(0, c.capacity - c.reservations.length),
+        fromSchedule: Boolean(c.template),
         mine: c.reservations.some((r) => String(r.member?._id || r.member) === me),
         // Solo el staff ve quién reservó.
         ...(isAdmin && { roster: c.reservations.map((r) => r.member?.name || '—') })
@@ -72,6 +84,10 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
     });
     res.status(201).json(gymClass);
   } catch (err) {
+    // Índice único {date,time}: ya hay una clase a esa hora ese día.
+    if (err?.code === 11000) {
+      return res.status(409).json({ error: 'Ya hay una clase a esa hora ese día' });
+    }
     next(err);
   }
 });

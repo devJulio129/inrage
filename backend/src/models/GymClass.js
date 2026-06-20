@@ -7,6 +7,8 @@ const gymClassSchema = new mongoose.Schema(
     name: { type: String, default: 'CrossFit', trim: true, maxlength: 60 },
     description: { type: String, trim: true, maxlength: 1000 }, // de qué trata la clase
     capacity: { type: Number, required: true, min: 1, max: 100 },
+    // Si nació del horario semanal, apunta a la franja que la generó (null = clase suelta).
+    template: { type: mongoose.Schema.Types.ObjectId, ref: 'ClassTemplate', default: null },
     reservations: [
       {
         member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
@@ -16,5 +18,9 @@ const gymClassSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Una sola clase por horario en un día dado: hace el upsert del materializador
+// idempotente y evita duplicados si dos atletas abren la reserva a la vez.
+gymClassSchema.index({ date: 1, time: 1 }, { unique: true });
 
 export const GymClass = mongoose.model('GymClass', gymClassSchema);
