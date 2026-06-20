@@ -116,6 +116,14 @@ export const api = {
       body: JSON.stringify({ idToken })
     }),
 
+  // Apple solo entrega fullName/email la primera vez; los reenviamos para
+  // guardarlos al crear la cuenta.
+  loginWithApple: ({ identityToken, fullName, email }) =>
+    request('/api/auth/apple', {
+      method: 'POST',
+      body: JSON.stringify({ identityToken, fullName, email })
+    }),
+
   me: () => request('/api/auth/me'),
 
   getTodayWorkout: () => request('/api/workouts/today'),

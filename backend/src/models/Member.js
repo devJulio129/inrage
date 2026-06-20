@@ -22,6 +22,10 @@ const memberSchema = new mongoose.Schema(
       type: String,
       enum: ["male", "female", "other", "prefer_not_to_say"],
     },
+    // IDs estables del proveedor social, para enlazar la cuenta aunque el
+    // correo cambie o quede oculto (p. ej. el relay privado de Apple).
+    appleId: { type: String, default: null, index: true, sparse: true },
+    googleId: { type: String, default: null, index: true, sparse: true },
     avatar: { type: String, default: null },
   },
   { timestamps: true },

@@ -7,8 +7,8 @@ const loginLogSchema = new mongoose.Schema({
   role:  { type: String },
   ip:    { type: String },
   // 'login' = inicio de sesión normal; 'register' = creó su cuenta;
-  // 'google' = entró con Google.
-  event: { type: String, enum: ['login', 'register', 'google'], default: 'login' },
+  // 'google' = entró con Google; 'apple' = entró con Apple.
+  event: { type: String, enum: ['login', 'register', 'google', 'apple'], default: 'login' },
   at:    { type: Date, default: Date.now },
 });
 

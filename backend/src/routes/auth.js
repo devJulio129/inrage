@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Member } from '../models/Member.js';
 import { LoginLog } from '../models/LoginLog.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { verifyAppleToken } from '../services/appleAuth.js';
 
 const router = Router();
 
@@ -139,16 +140,87 @@ router.post('/google', async (req, res, next) => {
       member = await Member.create({
         name: payload.name || email.split('@')[0],
         email,
+        googleId: payload.sub,
         password: randomPass,
         phone: 'N/A',
         birthDate: new Date('2000-01-01'),
         gender: 'prefer_not_to_say'
       });
+    } else if (!member.googleId && payload.sub) {
+      member.googleId = payload.sub;
+      await member.save();
     }
 
     const token = jwt.sign({ id: member._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     logAccess(member, 'google', req);
+
+    res.json({
+      token,
+      user: { _id: member._id, name: member.name, email: member.email, role: member.role, status: member.status }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Construye el nombre a partir del objeto fullName que Apple SOLO entrega en el
+// primer inicio de sesión (después llega vacío). Por eso lo guardamos al crear.
+function appleName(fullName, email) {
+  const parts = [fullName?.givenName, fullName?.familyName].filter(Boolean);
+  if (parts.length) return parts.join(' ').trim();
+  return (email || '').split('@')[0] || 'Atleta';
+}
+
+// POST /api/auth/apple
+// Recibe el identityToken de "Sign in with Apple" (iOS), lo verifica contra las
+// llaves de Apple y registra/loguea al atleta. Apple solo manda nombre y correo
+// la PRIMERA vez, así que el cliente los reenvía y aquí se guardan al crear.
+router.post('/apple', async (req, res, next) => {
+  try {
+    const { identityToken, fullName } = req.body;
+    if (!identityToken) return res.status(400).json({ error: 'Falta identityToken' });
+
+    // El `aud` del token nativo es el bundle ID de la app. Configurable por si
+    // se agrega un Services ID (web) en el futuro (lista separada por comas).
+    const audiences = (process.env.APPLE_CLIENT_ID || 'com.devjulio129.inrage')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+
+    let payload;
+    try {
+      payload = await verifyAppleToken(identityToken, audiences);
+    } catch (err) {
+      return res.status(401).json({ error: 'Token de Apple inválido' });
+    }
+
+    const appleId = payload.sub;
+    const email = (payload.email || req.body.email || '').toLowerCase();
+
+    // Enlaza por appleId (estable) o por correo si ya existía la cuenta.
+    let member = await Member.findOne(
+      email ? { $or: [{ appleId }, { email }] } : { appleId }
+    );
+
+    if (!member) {
+      if (!email) return res.status(400).json({ error: 'La cuenta de Apple no compartió un correo' });
+      const randomPass = await bcrypt.hash(`apple:${appleId}:${Date.now()}`, 10);
+      member = await Member.create({
+        name: appleName(fullName, email),
+        email,
+        appleId,
+        password: randomPass,
+        phone: 'N/A',
+        birthDate: new Date('2000-01-01'),
+        gender: 'prefer_not_to_say'
+      });
+    } else if (!member.appleId) {
+      member.appleId = appleId;
+      await member.save();
+    }
+
+    const token = jwt.sign({ id: member._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    logAccess(member, 'apple', req);
 
     res.json({
       token,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,13 @@ import {
 import Constants from 'expo-constants';
 import { colors, spacing, radii, type } from '../theme';
 import { api, saveSession } from '../api/client';
+
+// "Sign in with Apple" es nativo de iOS. Se carga solo ahí para no romper el
+// bundle de Android/web, donde el módulo no aplica.
+let AppleAuthentication = null;
+if (Platform.OS === 'ios') {
+  AppleAuthentication = require('expo-apple-authentication');
+}
 
 // Google only shows when a real client ID string is configured (any platform).
 const GOOGLE_ENABLED = (() => {
@@ -31,8 +38,15 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
   const [birth, setBirth] = useState(''); // DD/MM/AAAA (masked)
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
 
   const isLogin = mode === 'login';
+
+  // El botón de Apple solo se muestra si el dispositivo lo soporta (iOS 13+).
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !AppleAuthentication) return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
+  }, []);
 
   // Auto-format the date as the user types: 12082004 -> 12/08/2004
   function onBirthChange(text) {
@@ -112,6 +126,32 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
       if (user) onAuthed(user);
     } catch (err) {
       setError(err.message || 'No se pudo iniciar con Google');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleApple() {
+    if (!AppleAuthentication) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL
+        ]
+      });
+      const data = await api.loginWithApple({
+        identityToken: cred.identityToken,
+        fullName: cred.fullName,
+        email: cred.email
+      });
+      await saveSession(data.token, data.user);
+      onAuthed(data.user);
+    } catch (err) {
+      if (err?.code === 'ERR_REQUEST_CANCELED') return; // el usuario cerró el diálogo
+      setError(err.message || 'No se pudo iniciar con Apple');
     } finally {
       setLoading(false);
     }
@@ -251,6 +291,17 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
             <Text style={styles.or}>o</Text>
             <View style={styles.line} />
           </View>
+
+          {appleAvailable && AppleAuthentication && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={radii.md}
+              style={styles.apple}
+              onPress={handleApple}
+            />
+          )}
+
           <Pressable style={styles.google} onPress={handleGoogle} disabled={loading}>
             <Text style={styles.googleG}>G</Text>
             <Text style={styles.googleText}>Continuar con Google</Text>
@@ -371,6 +422,7 @@ const styles = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { color: colors.textMuted, marginHorizontal: spacing.md, fontSize: 12 },
+  apple: { width: '100%', height: 50, marginBottom: spacing.sm },
   google: {
     flexDirection: 'row',
     alignItems: 'center',

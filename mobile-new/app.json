@@ -18,6 +18,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.devjulio129.inrage",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -48,6 +49,7 @@
     },
     "plugins": [
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-image-picker",
         {
