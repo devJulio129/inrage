@@ -333,37 +333,45 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: spacing.lg,
-    paddingVertical: spacing.xxl
+    paddingVertical: spacing.xxl,
+    backgroundColor: colors.base
   },
   brand: { alignItems: 'center', marginBottom: spacing.xl },
   brandName: {
-    color: colors.accent,
+    color: colors.ivory,
     fontFamily: type.display,
     fontSize: 68,
     letterSpacing: 4,
-    textShadowColor: 'rgba(70,226,42,0.7)',
+    textShadowColor: 'rgba(70,226,42,0.45)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 22
+    textShadowRadius: 18
   },
   brandLine: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.sm },
   brandSub: { color: colors.accent, fontSize: 13, letterSpacing: 8, opacity: 0.9 },
 
   card: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    padding: spacing.lg
+    borderColor: colors.borderStrong,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    shadowColor: '#000',
+    shadowOpacity: 0.55,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 18 },
+    elevation: 8
   },
 
   segment: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderRadius: radii.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     padding: 4,
-    marginBottom: spacing.lg
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border
   },
-  segBtn: { flex: 1, paddingVertical: 10, borderRadius: radii.sm, alignItems: 'center' },
+  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   segBtnActive: { backgroundColor: colors.accent },
   segText: { color: colors.textMuted, fontWeight: '700', fontSize: 14 },
   segTextActive: { color: '#05230b' },
@@ -378,10 +386,10 @@ const styles = StyleSheet.create({
     marginLeft: 2
   },
   input: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
     color: colors.textPrimary,
@@ -404,13 +412,13 @@ const styles = StyleSheet.create({
 
   primary: {
     backgroundColor: colors.accent,
-    borderRadius: radii.md,
+    borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: spacing.xs,
     shadowColor: colors.accent,
     shadowOpacity: 0.5,
-    shadowRadius: 16,
+    shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 }
   },
   primaryPressed: { opacity: 0.85 },
@@ -429,9 +437,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: 14,
     paddingVertical: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)'
+    backgroundColor: colors.surfaceAlt
   },
   googleG: { color: '#4285F4', fontWeight: '900', fontSize: 18, marginRight: spacing.sm },
   googleText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },

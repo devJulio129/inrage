@@ -376,7 +376,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xxl, alignItems: 'center', paddingBottom: spacing.xxl },
 
-  avatarWrap: { width: 112, height: 112, borderRadius: 56, marginBottom: spacing.lg },
+  avatarWrap: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    marginBottom: spacing.lg,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8
+  },
   avatarImg: {
     width: 112, height: 112, borderRadius: 56,
     borderWidth: 2, borderColor: 'rgba(70,226,42,0.5)'
@@ -411,7 +421,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: spacing.md, width: '100%', marginBottom: spacing.md },
   statCard: {
     flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radii.md, paddingVertical: spacing.lg, alignItems: 'center', gap: 6
+    borderRadius: radii.lg, paddingVertical: spacing.lg, alignItems: 'center', gap: 6
   },
   statValue: { color: colors.textPrimary, fontFamily: type.display, fontSize: 26, letterSpacing: 0.5 },
   statLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' },
@@ -426,7 +436,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%', backgroundColor: colors.surface,
     borderWidth: 1, borderColor: colors.border,
-    borderRadius: radii.md, paddingHorizontal: spacing.lg, marginBottom: spacing.xl
+    borderRadius: radii.lg, paddingHorizontal: spacing.lg, marginBottom: spacing.xl
   },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -446,7 +456,9 @@ const styles = StyleSheet.create({
   },
   prGroup: {
     width: '100%', backgroundColor: colors.surface,
-    borderRadius: radii.md, paddingHorizontal: spacing.lg, marginBottom: spacing.sm + 2
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg, paddingHorizontal: spacing.lg, marginBottom: spacing.sm + 2
   },
   prCatHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -85,9 +85,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
-    marginBottom: spacing.md
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5
   },
   cardTitle: {
     color: colors.textMuted, fontSize: 11, fontWeight: '800',
@@ -113,7 +118,7 @@ const styles = StyleSheet.create({
   },
   contactIcon: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(70,226,42,0.12)',
+    backgroundColor: colors.accentSoft,
     alignItems: 'center', justifyContent: 'center'
   },
   contactLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 0.5 },

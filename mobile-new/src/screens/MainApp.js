@@ -307,8 +307,8 @@ const st = StyleSheet.create({
   },
   accountCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radii.md,
-    borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface, borderRadius: radii.lg,
+    borderWidth: 1, borderColor: colors.borderStrong,
     padding: spacing.md, marginBottom: spacing.xl
   },
   avatar: { width: 52, height: 52, borderRadius: 26 },
@@ -321,7 +321,7 @@ const st = StyleSheet.create({
 
   sectionLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 2, marginBottom: spacing.sm },
   group: {
-    backgroundColor: colors.surface, borderRadius: radii.md,
+    backgroundColor: colors.surface, borderRadius: radii.lg,
     borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: spacing.md, marginBottom: spacing.xl
   },
@@ -348,11 +348,16 @@ const styles = StyleSheet.create({
   tabbar: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    paddingTop: 6,
-    paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.sm
+    borderTopColor: colors.borderStrong,
+    backgroundColor: colors.baseElevated,
+    paddingTop: 8,
+    paddingBottom: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 12
   },
   tab: { flex: 1, alignItems: 'center' },
   tabPill: {
@@ -360,7 +365,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 16
   },
-  tabPillActive: { backgroundColor: 'rgba(70,226,42,0.12)' },
+  tabPillActive: {
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.22)'
+  },
   tabBadge: {
     position: 'absolute', top: 2, right: 12,
     width: 9, height: 9, borderRadius: 5,

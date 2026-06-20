@@ -1026,7 +1026,7 @@ function formatTime(d) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
-  content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
+  content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.base },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
   hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
   userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 38, letterSpacing: 1, marginTop: 1 },
@@ -1036,10 +1036,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: 'rgba(70,226,42,0.10)',
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: 'rgba(70,226,42,0.4)',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md,
     marginBottom: spacing.md
   },
@@ -1059,11 +1059,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md
   },
   emptyText: { color: colors.textMuted, fontSize: 13, flex: 1 },
@@ -1084,12 +1084,12 @@ const styles = StyleSheet.create({
   avatarInitials: { color: '#05230b', fontWeight: '900' },
 
   announce: {
-    backgroundColor: 'rgba(70,226,42,0.08)',
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: 'rgba(70,226,42,0.35)',
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md,
     marginBottom: spacing.lg
   },
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(242,192,55,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(242,192,55,0.4)',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     marginBottom: spacing.xl
   },
@@ -1115,16 +1115,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(70,226,42,0.3)',
+    borderColor: colors.borderStrong,
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
-    borderRadius: radii.md,
+    borderRadius: radii.xl,
     padding: spacing.md,
     marginBottom: spacing.lg,
     shadowColor: colors.accent,
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 }
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8
   },
   checkinIconWrap: {
     width: 44,
@@ -1153,7 +1154,7 @@ const styles = StyleSheet.create({
   goToClasses: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    borderRadius: radii.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.md,
     marginBottom: spacing.lg
   },
   goToClassesText: { flex: 1, color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
@@ -1183,7 +1184,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.sm
@@ -1252,11 +1253,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.sm + 2,
     marginBottom: spacing.sm
   },
-  postThumb: { width: 58, height: 58, borderRadius: radii.sm, backgroundColor: colors.surfaceAlt },
+  postThumb: { width: 58, height: 58, borderRadius: 12, backgroundColor: colors.surfaceAlt },
   postThumbEmpty: { alignItems: 'center', justifyContent: 'center' },
   postCompactTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginTop: 1 },
   postCompactPreview: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 2 },
@@ -1342,7 +1343,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(70,226,42,0.4)',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.lg
@@ -1364,7 +1365,20 @@ const styles = StyleSheet.create({
   checkoutText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
   checkinError: { color: colors.danger, fontSize: 13, marginBottom: spacing.lg, textAlign: 'center' },
 
-  card: { backgroundColor: colors.surface, borderRadius: radii.md, padding: spacing.lg, borderLeftWidth: 3, borderLeftColor: colors.accent },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    shadowColor: '#000',
+    shadowOpacity: 0.36,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 7
+  },
   wodKicker: { color: colors.accent, fontFamily: type.mono, fontSize: 11, letterSpacing: 2, marginBottom: spacing.sm },
   title: { color: colors.textPrimary, fontFamily: type.display, fontSize: 40, letterSpacing: 1.5, marginBottom: spacing.md },
   divider: { height: 1, backgroundColor: colors.border, marginBottom: spacing.md },
@@ -1380,7 +1394,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(70,226,42,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(70,226,42,0.3)',
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md,
     marginTop: spacing.md
   },
@@ -1402,7 +1416,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     marginBottom: spacing.sm + 2,
     overflow: 'hidden'
   },
@@ -1426,7 +1440,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md,
     marginTop: spacing.md
   },
