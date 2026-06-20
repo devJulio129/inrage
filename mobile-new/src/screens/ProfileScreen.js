@@ -234,32 +234,36 @@ export default function ProfileScreen({ user }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Pressable style={styles.avatarWrap} onPress={pickAvatar} disabled={avatarUploading}>
-        {profile?.avatar ? (
-          <Image source={{ uri: profile.avatar }} style={styles.avatarImg} />
-        ) : (
-          <View style={[styles.avatarImg, styles.avatarPlaceholder]}>
-            <Text style={styles.avatarText}>{initials}</Text>
+      <View style={styles.profileHero}>
+        <Pressable style={styles.avatarWrap} onPress={pickAvatar} disabled={avatarUploading}>
+          {profile?.avatar ? (
+            <Image source={{ uri: profile.avatar }} style={styles.avatarImg} />
+          ) : (
+            <View style={[styles.avatarImg, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          {avatarUploading && (
+            <View style={styles.avatarOverlay}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          )}
+          <View style={styles.avatarBadge}>
+            <Text style={styles.avatarBadgeText}>✎</Text>
           </View>
-        )}
-        {avatarUploading && (
-          <View style={styles.avatarOverlay}>
-            <ActivityIndicator color="#fff" />
+        </Pressable>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.profileKicker}>PERFIL DE ATLETA</Text>
+          <Text style={styles.name}>{profile?.name || 'Atleta'}</Text>
+          <Text style={styles.email}>{profile?.email}</Text>
+          <View style={[styles.statusChip, isActive ? styles.statusActive : styles.statusPending]}>
+            <View style={[styles.statusDot, { backgroundColor: isActive ? colors.accent : '#F2C037' }]} />
+            <Text style={[styles.statusText, { color: isActive ? colors.accent : '#F2C037' }]}>
+              {profile?.role === 'admin' ? 'Administrador' : isActive ? 'Miembro activo' : 'Pendiente de alta'}
+            </Text>
           </View>
-        )}
-        <View style={styles.avatarBadge}>
-          <Text style={styles.avatarBadgeText}>✎</Text>
         </View>
-      </Pressable>
-
-      <Text style={styles.name}>{profile?.name || 'Atleta'}</Text>
-      <Text style={styles.email}>{profile?.email}</Text>
-
-      <View style={[styles.statusChip, isActive ? styles.statusActive : styles.statusPending]}>
-        <View style={[styles.statusDot, { backgroundColor: isActive ? colors.accent : '#F2C037' }]} />
-        <Text style={[styles.statusText, { color: isActive ? colors.accent : '#F2C037' }]}>
-          {profile?.role === 'admin' ? 'Administrador' : isActive ? 'Miembro activo' : 'Pendiente de alta'}
-        </Text>
       </View>
 
       {loading ? (
@@ -374,48 +378,67 @@ function shortDate(d) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
-  content: { padding: spacing.lg, paddingTop: spacing.xxl, alignItems: 'center', paddingBottom: spacing.xxl },
+  content: { padding: spacing.lg, paddingTop: spacing.xl, alignItems: 'center', paddingBottom: spacing.xxl },
+
+  profileHero: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5
+  },
 
   avatarWrap: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    marginBottom: spacing.lg,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
     shadowColor: colors.accent,
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6
   },
   avatarImg: {
-    width: 112, height: 112, borderRadius: 56,
+    width: 82, height: 82, borderRadius: 41,
     borderWidth: 2, borderColor: 'rgba(70,226,42,0.5)'
   },
   avatarPlaceholder: {
     backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.accent, shadowOpacity: 0.5, shadowRadius: 22, shadowOffset: { width: 0, height: 0 }
   },
-  avatarText: { color: '#05230b', fontSize: 40, fontWeight: '900' },
+  avatarText: { color: '#05230b', fontSize: 30, fontWeight: '900' },
   avatarOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: 56, backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 41, backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center', justifyContent: 'center'
   },
   avatarBadge: {
     position: 'absolute', bottom: 2, right: 2,
-    width: 32, height: 32, borderRadius: 16,
+    width: 28, height: 28, borderRadius: 14,
     backgroundColor: colors.accent, borderWidth: 3, borderColor: colors.base,
     alignItems: 'center', justifyContent: 'center'
   },
   avatarBadgeText: { color: '#05230b', fontSize: 14, fontWeight: '900' },
 
-  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 36, letterSpacing: 1 },
+  profileKicker: { color: colors.accent, fontSize: 10, letterSpacing: 1.8, fontWeight: '900', marginBottom: 2 },
+  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 30, letterSpacing: 1, lineHeight: 32 },
   email: { color: colors.textMuted, fontSize: 14, marginTop: 2 },
 
   statusChip: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingVertical: 7,
-    borderRadius: 20, marginTop: spacing.md, marginBottom: spacing.xl, borderWidth: 1
+    alignSelf: 'flex-start',
+    borderRadius: 20, marginTop: spacing.sm, borderWidth: 1
   },
 
   statsRow: { flexDirection: 'row', gap: spacing.md, width: '100%', marginBottom: spacing.md },

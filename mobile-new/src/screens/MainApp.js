@@ -128,7 +128,16 @@ function SettingsScreen({ user, onLogout, onOpenMessages, unread }) {
 
   return (
     <ScrollView style={st.container} contentContainerStyle={st.content}>
-      <Text style={st.screenTitle}>AJUSTES</Text>
+      <View style={st.settingsHero}>
+        <View style={{ flex: 1 }}>
+          <Text style={st.screenKicker}>CUENTA Y GIMNASIO</Text>
+          <Text style={st.screenTitle}>Ajustes</Text>
+          <Text style={st.screenSub}>Mensajes, sesión y detalles de la app.</Text>
+        </View>
+        <View style={st.settingsIcon}>
+          <Ionicons name="settings" size={20} color={colors.accent} />
+        </View>
+      </View>
 
       <View style={st.accountCard}>
         {user?.avatar ? (
@@ -301,15 +310,43 @@ const cp = StyleSheet.create({
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl },
-  screenTitle: {
-    color: colors.textPrimary, fontFamily: type.display, fontSize: 30,
-    letterSpacing: 1.5, marginBottom: spacing.lg
+  settingsHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    shadowColor: '#000',
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5
   },
+  settingsIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  screenKicker: { color: colors.accent, fontSize: 10, letterSpacing: 1.8, fontWeight: '900', marginBottom: 3 },
+  screenTitle: {
+    color: colors.textPrimary, fontFamily: type.display, fontSize: 34,
+    letterSpacing: 1.2, lineHeight: 38
+  },
+  screenSub: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginTop: 4 },
   accountCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     backgroundColor: colors.surface, borderRadius: radii.lg,
     borderWidth: 1, borderColor: colors.borderStrong,
-    padding: spacing.md, marginBottom: spacing.xl
+    padding: spacing.md, marginBottom: spacing.lg
   },
   avatar: { width: 52, height: 52, borderRadius: 26 },
   avatarFallback: { backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
@@ -323,7 +360,7 @@ const st = StyleSheet.create({
   group: {
     backgroundColor: colors.surface, borderRadius: radii.lg,
     borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.md, marginBottom: spacing.xl
+    paddingHorizontal: spacing.md, marginBottom: spacing.lg
   },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,

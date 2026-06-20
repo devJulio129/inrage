@@ -255,6 +255,25 @@ function SectionHeader({ children }) {
   );
 }
 
+function ScreenIntro({ eyebrow, title, subtitle, icon, avatar }) {
+  return (
+    <View style={styles.screenIntro}>
+      <View style={styles.screenIntroTop}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.screenEyebrow}>{eyebrow}</Text>
+          <Text style={styles.screenTitleText}>{title}</Text>
+        </View>
+        {avatar || (
+          <View style={styles.screenIcon}>
+            <Ionicons name={icon} size={20} color={colors.accent} />
+          </View>
+        )}
+      </View>
+      {subtitle ? <Text style={styles.screenSubtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
 // ── Reserva de clases ───────────────────────────────────────────────
 function ClassesSection({ classes, onChanged }) {
   const [busyId, setBusyId] = useState(null);
@@ -709,24 +728,12 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
       }
     >
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <View>
-            <Text style={styles.heroKicker}>INRAGE PERFORMANCE</Text>
-            <Text style={styles.hello}>{greeting().toUpperCase()} · {formatDate(new Date())}</Text>
-          </View>
-          <Avatar uri={user?.avatar} name={user?.name} size={46} />
-        </View>
-        <Text style={styles.userName}>{firstName(user?.name)}</Text>
-        <View style={styles.heroFooter}>
-          <View style={styles.heroMetric}>
-            <Text style={styles.heroMetricValue}>{inGym ? 'EN BOX' : 'READY'}</Text>
-            <Text style={styles.heroMetricLabel}>{inGym ? 'sesion activa' : 'para entrenar'}</Text>
-          </View>
-          <View style={styles.heroLine} />
-          <Text style={styles.heroCopy}>WOD, clases y comunidad en una experiencia premium.</Text>
-        </View>
-      </View>
+      <ScreenIntro
+        eyebrow={`${greeting().toUpperCase()} · ${formatDate(new Date())}`}
+        title={firstName(user?.name)}
+        subtitle={inGym ? 'Tienes una visita activa en el box.' : 'Listo para reservar, entrenar y seguir tu progreso.'}
+        avatar={<Avatar uri={user?.avatar} name={user?.name} size={46} />}
+      />
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
 
@@ -844,15 +851,12 @@ export function ClassesScreen({ user }) {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
     >
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.hello}>RESERVA TU LUGAR</Text>
-          <Text style={styles.userName}>Clases</Text>
-        </View>
-        <View style={styles.wodBadge}>
-          <Ionicons name="calendar" size={20} color={colors.accent} />
-        </View>
-      </View>
+      <ScreenIntro
+        eyebrow="RESERVA TU LUGAR"
+        title="Clases"
+        subtitle="Elige horario, revisa cupos y aparta tu lugar antes de llegar."
+        icon="calendar"
+      />
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
 
@@ -931,15 +935,12 @@ export function WodScreen({ user }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
       }
     >
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.hello}>{formatDate(new Date())}</Text>
-          <Text style={styles.userName}>WOD del día</Text>
-        </View>
-        <View style={styles.wodBadge}>
-          <Ionicons name="barbell" size={20} color={colors.accent} />
-        </View>
-      </View>
+      <ScreenIntro
+        eyebrow={formatDate(new Date())}
+        title="WOD del día"
+        subtitle="Revisa el entrenamiento, tu dosis personalizada y la conversación del box."
+        icon="barbell"
+      />
 
       {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
 
@@ -1039,42 +1040,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: spacing.xxl, backgroundColor: colors.base },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-  hero: {
+  screenIntro: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
+    borderRadius: radii.lg,
+    padding: spacing.md,
     marginBottom: spacing.lg,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.16,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 9
+    shadowColor: '#000',
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5
   },
-  heroTop: {
+  screenIntroTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm
+    gap: spacing.md
   },
-  heroKicker: { color: colors.accent, fontSize: 11, letterSpacing: 2.4, fontWeight: '900', marginBottom: 4 },
-  hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
-  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 46, letterSpacing: 1.4, marginTop: 1 },
-  heroFooter: {
-    flexDirection: 'row',
+  screenEyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.4, fontWeight: '800', marginBottom: 3 },
+  screenTitleText: { color: colors.textPrimary, fontFamily: type.display, fontSize: 34, letterSpacing: 1.2, lineHeight: 38 },
+  screenSubtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: spacing.sm },
+  screenIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
+    justifyContent: 'center'
   },
-  heroMetric: { minWidth: 72 },
-  heroMetricValue: { color: colors.accent, fontFamily: type.display, fontSize: 22, letterSpacing: 1.2 },
-  heroMetricLabel: { color: colors.textMuted, fontSize: 10, marginTop: -2 },
-  heroLine: { width: 1, alignSelf: 'stretch', backgroundColor: colors.border },
-  heroCopy: { flex: 1, color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
+  userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 36, letterSpacing: 1.2, marginTop: 1 },
 
   /* Próxima clase reservada */
   nextClass: {
@@ -1229,10 +1228,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
     borderRadius: radii.lg,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm
+    marginBottom: spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3
   },
   classTime: {
     color: colors.textPrimary,
@@ -1247,7 +1253,7 @@ const styles = StyleSheet.create({
   classHint: { color: colors.textMuted, fontSize: 10.5, opacity: 0.8 },
   classBtn: {
     backgroundColor: colors.accent,
-    borderRadius: 18,
+    borderRadius: 14,
     paddingVertical: 9,
     paddingHorizontal: 14,
     minWidth: 104,
@@ -1412,20 +1418,20 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderStrong,
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
     shadowColor: '#000',
-    shadowOpacity: 0.36,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 7
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5
   },
   wodKicker: { color: colors.accent, fontFamily: type.mono, fontSize: 11, letterSpacing: 2, marginBottom: spacing.sm },
-  title: { color: colors.textPrimary, fontFamily: type.display, fontSize: 40, letterSpacing: 1.5, marginBottom: spacing.md },
+  title: { color: colors.textPrimary, fontFamily: type.display, fontSize: 36, letterSpacing: 1.3, marginBottom: spacing.md },
   divider: { height: 1, backgroundColor: colors.border, marginBottom: spacing.md },
   description: { color: colors.textPrimary, fontFamily: type.mono, fontSize: 16, lineHeight: 26 },
 
@@ -1458,7 +1464,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5, marginBottom: spacing.md
   },
   histCard: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.lg,
