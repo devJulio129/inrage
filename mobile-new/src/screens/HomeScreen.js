@@ -211,16 +211,15 @@ function dayLabel(date) {
     .toUpperCase();
 }
 
-function groupClassesByDay(list) {
+function todayClasses(list) {
   const today = localDayStr();
-  const map = new Map();
-  for (const c of list || []) {
-    if (classDay(c.date) < today) continue;
-    const k = dayLabel(c.date);
-    if (!map.has(k)) map.set(k, []);
-    map.get(k).push(c);
-  }
-  return [...map.entries()];
+  const now = Date.now();
+  return (list || []).filter((c) => {
+    if (classDay(c.date) !== today) return false;
+    const [h, m] = String(c.time || '0:0').split(':').map(Number);
+    const [y, mo, d] = today.split('-').map(Number);
+    return new Date(y, mo - 1, d, h || 0, m || 0).getTime() > now;
+  });
 }
 
 function greeting() {
@@ -307,58 +306,53 @@ function ClassesSection({ classes, onChanged }) {
 
   // Vuelve a leer la clase del prop fresco para que el modal refleje cupos.
   const liveDetail = detail ? classes.find((c) => c._id === detail._id) || detail : null;
-  const groups = groupClassesByDay(classes);
+  const todayList = todayClasses(classes);
 
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <SectionHeader>RESERVA TU CLASE</SectionHeader>
+      <SectionHeader>CLASES DE HOY</SectionHeader>
       {error && <Text style={styles.commentsError}>{error}</Text>}
-      {groups.length === 0 && (
+      {todayList.length === 0 && (
         <View style={styles.emptyCard}>
           <Ionicons name="calendar-outline" size={22} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Aún no hay clases abiertas. Vuelve más tarde.</Text>
+          <Text style={styles.emptyText}>No hay más clases programadas para hoy.</Text>
         </View>
       )}
-      {groups.map(([day, list]) => (
-        <View key={day}>
-          <Text style={styles.dayHead}>{day}</Text>
-          {list.map((c) => {
-            const full = c.spotsLeft === 0 && !c.mine;
-            return (
-              <Pressable key={c._id} style={styles.classCard} onPress={() => setDetail(c)}>
-                <Text style={styles.classTime}>{c.time}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.className}>{c.name}</Text>
-                  <Text style={[styles.classSpots, c.spotsLeft === 0 && !c.mine && { color: colors.danger }]}>
-                    {c.mine
-                      ? 'Tienes tu lugar apartado'
-                      : c.spotsLeft === 0
-                        ? 'Clase llena'
-                        : `${c.spotsLeft} de ${c.capacity} lugares libres`}
-                  </Text>
-                  <View style={styles.classHintRow}>
-                    <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
-                    <Text style={styles.classHint}>Toca para ver de qué trata</Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={() => toggle(c)}
-                  disabled={full || busyId === c._id}
-                  style={[styles.classBtn, c.mine && styles.classBtnMine, full && styles.classBtnFull]}
-                >
-                  {busyId === c._id ? (
-                    <ActivityIndicator size="small" color={c.mine ? colors.accent : '#05230b'} />
-                  ) : (
-                    <Text style={[styles.classBtnText, c.mine && styles.classBtnTextMine, full && styles.classBtnTextFull]}>
-                      {c.mine ? 'RESERVADO ✓' : full ? 'LLENA' : 'RESERVAR'}
-                    </Text>
-                  )}
-                </Pressable>
-              </Pressable>
-            );
-          })}
-        </View>
-      ))}
+      {todayList.map((c) => {
+        const full = c.spotsLeft === 0 && !c.mine;
+        return (
+          <Pressable key={c._id} style={styles.classCard} onPress={() => setDetail(c)}>
+            <Text style={styles.classTime}>{c.time}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.className}>{c.name}</Text>
+              <Text style={[styles.classSpots, c.spotsLeft === 0 && !c.mine && { color: colors.danger }]}>
+                {c.mine
+                  ? 'Tienes tu lugar apartado'
+                  : c.spotsLeft === 0
+                    ? 'Clase llena'
+                    : `${c.spotsLeft} de ${c.capacity} lugares libres`}
+              </Text>
+              <View style={styles.classHintRow}>
+                <Ionicons name="information-circle-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.classHint}>Toca para ver de qué trata</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => toggle(c)}
+              disabled={full || busyId === c._id}
+              style={[styles.classBtn, c.mine && styles.classBtnMine, full && styles.classBtnFull]}
+            >
+              {busyId === c._id ? (
+                <ActivityIndicator size="small" color={c.mine ? colors.accent : '#05230b'} />
+              ) : (
+                <Text style={[styles.classBtnText, c.mine && styles.classBtnTextMine, full && styles.classBtnTextFull]}>
+                  {c.mine ? 'RESERVADO ✓' : full ? 'LLENA' : 'RESERVAR'}
+                </Text>
+              )}
+            </Pressable>
+          </Pressable>
+        );
+      })}
 
       {/* Detalle de la clase: de qué trata + reservar/cancelar */}
       <Modal visible={!!liveDetail} transparent animationType="slide" onRequestClose={() => setDetail(null)}>
@@ -852,9 +846,9 @@ export function ClassesScreen({ user }) {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
     >
       <ScreenIntro
-        eyebrow="RESERVA TU LUGAR"
+        eyebrow={`HOY · ${formatDate(new Date())}`}
         title="Clases"
-        subtitle="Elige horario, revisa cupos y aparta tu lugar antes de llegar."
+        subtitle="Aparta tu lugar en las clases que quedan hoy."
         icon="calendar"
       />
 
@@ -877,7 +871,7 @@ export function ClassesScreen({ user }) {
 }
 
 // ── WOD: el entrenamiento de hoy, tu dosis y la conversación ────────
-export function WodScreen({ user }) {
+export function WodScreen({ user, onGoToClasses }) {
   const [workout, setWorkout] = useState(null);
   const [wodError, setWodError] = useState(null);
   const [wodEmpty, setWodEmpty] = useState(false);
@@ -980,6 +974,13 @@ export function WodScreen({ user }) {
                 <Text style={styles.description}>{workout.description}</Text>
                 <Reactions targetType="workout" targetId={workout._id} />
               </View>
+              {onGoToClasses && (
+                <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+                  <Text style={styles.goToClassesText}>Reserva tu lugar en la clase de hoy</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              )}
               <PersonalizedWod description={workout.description} prs={prs} />
               <CommentsThread targetType="workout" targetId={workout._id} user={user} />
             </>

@@ -24,7 +24,9 @@ function resolveApiUrl() {
 
   if (hostUri && Platform.OS !== 'web') {
     const host = hostUri.split(':')[0];
-    if (host && host !== 'localhost') return `http://${host}:${API_PORT}`;
+    // Only use LAN IP — skip tunnel hostnames (e.g. exp.host, *.exp.direct)
+    const isLanIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+    if (isLanIp) return `http://${host}:${API_PORT}`;
   }
 
   // Web / fallback.

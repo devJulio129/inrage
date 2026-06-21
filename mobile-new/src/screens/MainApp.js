@@ -244,8 +244,8 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
       <View style={styles.screen}>
         {tab === 'home' && <HomeScreen user={user} onUserUpdate={onUserUpdate} onGoToClasses={() => setTab('classes')} />}
         {tab === 'classes' && <ClassesScreen user={user} />}
-        {tab === 'wod' && <WodScreen user={user} />}
-        {tab === 'profile' && <ProfileScreen user={user} />}
+        {tab === 'wod' && <WodScreen user={user} onGoToClasses={() => setTab('classes')} />}
+        {tab === 'profile' && <ProfileScreen user={user} onUserUpdate={onUserUpdate} />}
         {tab === 'settings' && (
           <SettingsScreen user={user} onLogout={onLogout} unread={unread} onOpenMessages={() => setTab('messages')} />
         )}

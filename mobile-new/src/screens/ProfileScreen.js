@@ -133,7 +133,7 @@ export function fmtPR(pr) {
   return `${pr.value} ${suffix}`;
 }
 
-export default function ProfileScreen({ user }) {
+export default function ProfileScreen({ user, onUserUpdate }) {
   const [profile, setProfile] = useState(user);
   const [visits, setVisits] = useState(null);
   const [prs, setPrs] = useState({});
@@ -141,8 +141,15 @@ export default function ProfileScreen({ user }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState('');
-  // Secciones colapsables: arranca abierta solo la primera.
   const [openCats, setOpenCats] = useState(() => new Set([MOVEMENTS[0].category]));
+
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editBirth, setEditBirth] = useState('');
+  const [editGender, setEditGender] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState(null);
 
   function toggleCat(category) {
     setOpenCats(prev => {
@@ -223,6 +230,51 @@ export default function ProfileScreen({ user }) {
     }
   }
 
+  function startEditProfile() {
+    setEditName(profile?.name || '');
+    setEditPhone(profile?.phone && profile.phone !== 'N/A' ? profile.phone : '');
+    setEditBirth(profile?.birthDate ? isoToDMY(profile.birthDate) : '');
+    setEditGender(profile?.gender || 'prefer_not_to_say');
+    setProfileError(null);
+    setEditingProfile(true);
+  }
+
+  function onBirthChange(text) {
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    let out = digits;
+    if (digits.length > 4) out = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    else if (digits.length > 2) out = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    setEditBirth(out);
+  }
+
+  async function saveProfile() {
+    setProfileError(null);
+    const name = editName.trim();
+    if (!name) return setProfileError('El nombre no puede estar vacío');
+    if (editPhone && editPhone.length < 10) return setProfileError('Teléfono debe tener 10 dígitos');
+    let birthDate;
+    if (editBirth) {
+      const iso = dmyToISO(editBirth);
+      if (!iso) return setProfileError('Fecha inválida (usa DD/MM/AAAA)');
+      birthDate = iso;
+    }
+    setSavingProfile(true);
+    try {
+      const payload = { name };
+      if (editPhone) payload.phone = editPhone;
+      if (birthDate) payload.birthDate = birthDate;
+      if (editGender) payload.gender = editGender;
+      const updated = await api.updateMember(profile._id, payload);
+      setProfile(updated);
+      onUserUpdate?.(updated);
+      setEditingProfile(false);
+    } catch (e) {
+      setProfileError(e.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   const initials = (profile?.name || 'A')
     .split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
@@ -284,9 +336,80 @@ export default function ProfileScreen({ user }) {
           </View>
 
           <View style={styles.card}>
-            <Row icon="call-outline" label="Teléfono" value={profile?.phone || '—'} />
-            <Row icon="gift-outline" label="Nacimiento" value={formatDate(profile?.birthDate)} />
-            <Row icon="ribbon-outline" label="Rol" value={profile?.role === 'admin' ? 'Admin' : 'Atleta'} last />
+            {editingProfile ? (
+              <>
+                <View style={styles.editHeader}>
+                  <Text style={styles.editTitle}>EDITAR PERFIL</Text>
+                  <Pressable onPress={() => setEditingProfile(false)} hitSlop={8}>
+                    <Text style={styles.editCancel}>Cancelar</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={styles.editLabel}>NOMBRE</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Nombre completo"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="words"
+                />
+
+                <Text style={styles.editLabel}>TELÉFONO</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editPhone}
+                  onChangeText={(t) => setEditPhone(t.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10 dígitos"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                />
+
+                <Text style={styles.editLabel}>FECHA DE NACIMIENTO</Text>
+                <TextInput
+                  style={styles.editInput}
+                  value={editBirth}
+                  onChangeText={onBirthChange}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                />
+
+                <Text style={styles.editLabel}>GÉNERO</Text>
+                <View style={styles.genderRow}>
+                  {GENDER_OPTIONS.map(({ value, label }) => (
+                    <Pressable
+                      key={value}
+                      style={[styles.genderChip, editGender === value && styles.genderChipActive]}
+                      onPress={() => setEditGender(value)}
+                    >
+                      <Text style={[styles.genderChipText, editGender === value && styles.genderChipTextActive]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {profileError && <Text style={styles.editError}>{profileError}</Text>}
+
+                <Pressable style={styles.editSaveBtn} onPress={saveProfile} disabled={savingProfile}>
+                  {savingProfile
+                    ? <ActivityIndicator color="#05230b" />
+                    : <Text style={styles.editSaveBtnText}>GUARDAR CAMBIOS</Text>}
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Row icon="call-outline" label="Teléfono" value={profile?.phone && profile.phone !== 'N/A' ? profile.phone : '—'} />
+                <Row icon="gift-outline" label="Nacimiento" value={formatDate(profile?.birthDate)} />
+                <Row icon="people-outline" label="Género" value={GENDER_LABELS[profile?.gender] || '—'} />
+                <Row icon="ribbon-outline" label="Rol" value={profile?.role === 'admin' ? 'Admin' : 'Atleta'} />
+                <Pressable style={styles.editProfileBtn} onPress={startEditProfile}>
+                  <Ionicons name="pencil-outline" size={14} color={colors.accent} />
+                  <Text style={styles.editProfileBtnText}>Editar información</Text>
+                </Pressable>
+              </>
+            )}
           </View>
 
           <View style={styles.sectionHeadRow}>
@@ -369,12 +492,37 @@ function Row({ icon, label, value, last }) {
 
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Parse UTC components to avoid timezone shift (Mongolia/Mexico UTC-6 shifts midnight to prev day)
+  const dt = new Date(d);
+  return new Date(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate())
+    .toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 function shortDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
 }
+function isoToDMY(isoStr) {
+  const [y, m, d] = String(isoStr).slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+}
+function dmyToISO(dmy) {
+  const match = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  const d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+const GENDER_LABELS = {
+  male: 'Hombre', female: 'Mujer', other: 'Otro', prefer_not_to_say: 'Sin especificar',
+};
+const GENDER_OPTIONS = [
+  { value: 'male', label: 'Hombre' },
+  { value: 'female', label: 'Mujer' },
+  { value: 'other', label: 'Otro' },
+  { value: 'prefer_not_to_say', label: 'Sin especificar' },
+];
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
@@ -527,5 +675,38 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,75,75,0.4)',
     borderRadius: radii.md, paddingVertical: 15, alignItems: 'center'
   },
-  logoutText: { color: colors.danger, fontSize: 15, fontWeight: '700' }
+  logoutText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
+
+  editProfileBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center',
+    paddingVertical: 13, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border,
+  },
+  editProfileBtnText: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+
+  editHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
+  },
+  editTitle: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  editCancel: { color: colors.textMuted, fontSize: 14 },
+  editLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 1, marginBottom: 6, marginTop: spacing.md },
+  editInput: {
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 12,
+    color: colors.textPrimary, fontSize: 15,
+  },
+  genderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.sm },
+  genderChip: {
+    borderWidth: 1, borderColor: colors.border, borderRadius: 20,
+    paddingVertical: 7, paddingHorizontal: 14,
+  },
+  genderChipActive: { backgroundColor: colors.accentSoft, borderColor: 'rgba(70,226,42,0.45)' },
+  genderChipText: { color: colors.textMuted, fontSize: 13 },
+  genderChipTextActive: { color: colors.accent, fontWeight: '700' },
+  editError: { color: colors.danger, fontSize: 13, marginTop: spacing.sm, textAlign: 'center' },
+  editSaveBtn: {
+    backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: 14,
+    alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.sm,
+  },
+  editSaveBtnText: { color: '#05230b', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
 });
