@@ -26,6 +26,13 @@ const memberSchema = new mongoose.Schema(
     // correo cambie o quede oculto (p. ej. el relay privado de Apple).
     appleId: { type: String, default: null, index: true, sparse: true },
     googleId: { type: String, default: null, index: true, sparse: true },
+    // Rango del atleta, lo asigna el admin (tiempo entrenando + pesos). null =
+    // sin rango todavía. Es motivacional, no afecta permisos.
+    rank: {
+      type: String,
+      enum: ['rookie', 'intermedio', 'avanzado', 'elite', 'leyenda'],
+      default: null
+    },
     avatar: { type: String, default: null },
   },
   { timestamps: true },

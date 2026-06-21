@@ -133,9 +133,19 @@ export function fmtPR(pr) {
   return `${pr.value} ${suffix}`;
 }
 
+// Rango del atleta (lo asigna el admin). Etiqueta + color de la insignia.
+const RANK_META = {
+  rookie: { label: 'Rookie', color: '#C8A18C' },
+  intermedio: { label: 'Intermedio', color: '#37C7F2' },
+  avanzado: { label: 'Avanzado', color: colors.accent },
+  elite: { label: 'Élite', color: '#F2C037' },
+  leyenda: { label: 'Leyenda', color: '#C79BE0' }
+};
+
 export default function ProfileScreen({ user, onUserUpdate }) {
   const [profile, setProfile] = useState(user);
   const [visits, setVisits] = useState(null);
+  const [streak, setStreak] = useState(null);
   const [prs, setPrs] = useState({});
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -169,6 +179,7 @@ export default function ProfileScreen({ user, onUserUpdate }) {
         ]);
         setProfile(me || user);
         setVisits(att?.totalVisits ?? null);
+        setStreak(att?.streak ?? null);
         const map = {};
         for (const pr of (prList || [])) map[pr.movement] = { value: pr.value, unit: pr.unit };
         setPrs(map);
@@ -279,6 +290,7 @@ export default function ProfileScreen({ user, onUserUpdate }) {
     .split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   const isActive = profile?.role === 'admin' || profile?.status !== 'pending';
+  const rankMeta = RANK_META[profile?.rank];
 
   return (
     <ScrollView
@@ -309,11 +321,19 @@ export default function ProfileScreen({ user, onUserUpdate }) {
           <Text style={styles.profileKicker}>PERFIL DE ATLETA</Text>
           <Text style={styles.name}>{profile?.name || 'Atleta'}</Text>
           <Text style={styles.email}>{profile?.email}</Text>
-          <View style={[styles.statusChip, isActive ? styles.statusActive : styles.statusPending]}>
-            <View style={[styles.statusDot, { backgroundColor: isActive ? colors.accent : '#F2C037' }]} />
-            <Text style={[styles.statusText, { color: isActive ? colors.accent : '#F2C037' }]}>
-              {profile?.role === 'admin' ? 'Administrador' : isActive ? 'Miembro activo' : 'Pendiente de alta'}
-            </Text>
+          <View style={styles.heroChips}>
+            <View style={[styles.statusChip, isActive ? styles.statusActive : styles.statusPending]}>
+              <View style={[styles.statusDot, { backgroundColor: isActive ? colors.accent : '#F2C037' }]} />
+              <Text style={[styles.statusText, { color: isActive ? colors.accent : '#F2C037' }]}>
+                {profile?.role === 'admin' ? 'Administrador' : isActive ? 'Miembro activo' : 'Pendiente de alta'}
+              </Text>
+            </View>
+            {rankMeta && (
+              <View style={[styles.rankChip, { borderColor: rankMeta.color + '66' }]}>
+                <Ionicons name="ribbon" size={13} color={rankMeta.color} />
+                <Text style={[styles.rankChipText, { color: rankMeta.color }]}>{rankMeta.label}</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -324,9 +344,14 @@ export default function ProfileScreen({ user, onUserUpdate }) {
         <>
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
-              <Ionicons name="flame" size={20} color={colors.accent} />
+              <Ionicons name="checkmark-done" size={20} color={colors.accent} />
               <Text style={styles.statValue}>{visits ?? '—'}</Text>
               <Text style={styles.statLabel}>Visitas</Text>
+            </View>
+            <View style={[styles.statCard, streak > 0 && styles.statCardHot]}>
+              <Ionicons name="flame" size={20} color={streak > 0 ? '#FF7A1A' : colors.textMuted} />
+              <Text style={styles.statValue}>{streak ?? '—'}</Text>
+              <Text style={styles.statLabel}>Racha (días)</Text>
             </View>
             <View style={styles.statCard}>
               <Ionicons name="calendar" size={20} color={colors.accent} />
@@ -586,16 +611,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingVertical: 7,
     alignSelf: 'flex-start',
-    borderRadius: 20, marginTop: spacing.sm, borderWidth: 1
+    borderRadius: 20, borderWidth: 1
   },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: spacing.sm },
+  rankChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.03)'
+  },
+  rankChipText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 
-  statsRow: { flexDirection: 'row', gap: spacing.md, width: '100%', marginBottom: spacing.md },
+  statsRow: { flexDirection: 'row', gap: spacing.sm, width: '100%', marginBottom: spacing.md },
   statCard: {
     flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: radii.lg, paddingVertical: spacing.lg, alignItems: 'center', gap: 6
   },
-  statValue: { color: colors.textPrimary, fontFamily: type.display, fontSize: 26, letterSpacing: 0.5 },
-  statLabel: { color: colors.textMuted, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase' },
+  statCardHot: { borderColor: 'rgba(255,122,26,0.45)', backgroundColor: 'rgba(255,122,26,0.08)' },
+  statValue: { color: colors.textPrimary, fontFamily: type.display, fontSize: 22, letterSpacing: 0.5 },
+  statLabel: { color: colors.textMuted, fontSize: 10.5, letterSpacing: 0.4, textTransform: 'uppercase', textAlign: 'center' },
 
   sectionHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', marginTop: spacing.sm },
   sectionAccent: { width: 4, height: 20, borderRadius: 2, backgroundColor: colors.accent },

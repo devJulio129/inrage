@@ -9,6 +9,17 @@ const EMPTY_FORM = {
 
 const EMPTY_WOD = { title: '', description: '', date: '' };
 
+// Rangos del atleta — los asigna el admin (tiempo entrenando + pesos). Es una
+// progresión motivacional, no una etiqueta de valor: tonos positivos para todos.
+const RANKS = [
+  { key: 'rookie', label: 'Rookie' },
+  { key: 'intermedio', label: 'Intermedio' },
+  { key: 'avanzado', label: 'Avanzado' },
+  { key: 'elite', label: 'Élite' },
+  { key: 'leyenda', label: 'Leyenda' }
+];
+const rankLabel = (k) => RANKS.find(r => r.key === k)?.label || null;
+
 // Catálogo de movimientos de CrossFit (nombres del pizarrón, en inglés).
 // pct: true → la app puede personalizar la dosis con el PR del atleta.
 const CF_MOVEMENTS = [
@@ -245,6 +256,7 @@ export default function App() {
 
   // Create / Edit
   const [showForm, setShowForm] = useState(false);
+  const [rankMember, setRankMember] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
@@ -580,6 +592,12 @@ export default function App() {
       .catch(err => alert('Error: ' + err.message));
   }
 
+  function handleSetRank(member, rank) {
+    api.updateMember(member._id, { rank })
+      .then(() => { setRankMember(null); fetchMembers(); })
+      .catch(err => alert('Error: ' + err.message));
+  }
+
   function handleApprove(member) {
     api.updateMember(member._id, { status: 'active' })
       .then(() => { fetchMembers(); if (tab === 'logs') fetchLogs(); })
@@ -843,6 +861,9 @@ export default function App() {
                     {member.role !== 'admin' && member.status === 'active' && (
                       <span className="pill pill-active">alta ✓</span>
                     )}
+                    {member.rank && (
+                      <span className={`pill rank-${member.rank}`}>{rankLabel(member.rank)}</span>
+                    )}
                   </h3>
                   <p className="email">{member.email}</p>
                   <p className="meta">
@@ -862,6 +883,9 @@ export default function App() {
                     <button className="btn-primary btn-sm" onClick={() => handleApprove(member)}>Dar de alta</button>
                   )}
                   <button className="btn-ghost" onClick={() => { setMsgMemberId(member._id); setTab('messages'); }}>Mensaje</button>
+                  {member.role !== 'admin' && (
+                    <button className="btn-ghost" onClick={() => setRankMember(member)}>Rango</button>
+                  )}
                   <button className="btn-ghost" onClick={() => openEdit(member)}>Editar</button>
                   <button className="btn-danger" onClick={() => handleDelete(member)}>Eliminar</button>
                 </div>
@@ -908,6 +932,32 @@ export default function App() {
                     <button type="button" className="btn-ghost" onClick={closeForm}>Cancelar</button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {rankMember && (
+            <div className="modal-overlay" onClick={() => setRankMember(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <h3>Rango de {rankMember.name}</h3>
+                <p className="muted" style={{ marginTop: 0 }}>
+                  Asígnalo según su tiempo entrenando y sus pesos. Se ve en su perfil de la app.
+                </p>
+                <div className="rank-options">
+                  {RANKS.map(r => (
+                    <button
+                      key={r.key}
+                      className={`rank-option rank-${r.key}${rankMember.rank === r.key ? ' selected' : ''}`}
+                      onClick={() => handleSetRank(rankMember, r.key)}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="row" style={{ marginTop: 16 }}>
+                  <button className="btn-ghost" onClick={() => handleSetRank(rankMember, null)}>Quitar rango</button>
+                  <button className="btn-ghost" onClick={() => setRankMember(null)}>Cerrar</button>
+                </div>
               </div>
             </div>
           )}

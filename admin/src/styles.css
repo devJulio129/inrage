@@ -296,6 +296,19 @@ input, select, textarea { font-family: inherit; }
 .pill-red    { background: rgba(255,75,75,0.15);  color: var(--red); }
 .pill-blue   { background: rgba(55,199,242,0.15); color: #37C7F2; }
 .pill-apple  { background: rgba(255,255,255,0.12); color: #EDEDED; }
+
+/* Rangos de atleta */
+.rank-rookie     { background: rgba(164,120,100,0.20); color: #C8A18C; }
+.rank-intermedio { background: rgba(55,199,242,0.15);  color: #37C7F2; }
+.rank-avanzado   { background: rgba(70,226,42,0.15);   color: var(--green); }
+.rank-elite      { background: rgba(242,192,55,0.18);  color: var(--yellow); }
+.rank-leyenda    { background: rgba(176,132,224,0.22); color: #C79BE0; }
+.rank-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.rank-option {
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 9px 18px; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.rank-option.selected { outline: 2px solid var(--green); outline-offset: 1px; }
 .pill-pending { background: rgba(242,192,55,0.18); color: var(--yellow); }
 .pill-active  { background: rgba(70,226,42,0.15);  color: var(--green); }
 

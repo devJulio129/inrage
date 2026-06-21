@@ -14,6 +14,7 @@ import {
   Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import GymInfo from '../components/GymInfo';
@@ -597,6 +598,7 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
   const [attendance, setAttendance] = useState(null);
   const [checking, setChecking] = useState(false);
   const [checkinError, setCheckinError] = useState(null);
+  const [celebration, setCelebration] = useState(null); // racha alcanzada a celebrar
 
   const [gymInfo, setGymInfo] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -679,13 +681,36 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
     load();
   }
 
+  // Hitos de racha: 5, 10 y luego cada 10 (20, 30, 40…).
+  function isStreakMilestone(n) {
+    return n === 5 || (n >= 10 && n % 10 === 0);
+  }
+
+  // Celebra una sola vez cada hito (se recuerda en el dispositivo). Si la racha
+  // se reinicia y vuelve a alcanzar un hito, se vuelve a celebrar.
+  async function maybeCelebrate(streak) {
+    if (!streak || !isStreakMilestone(streak)) return;
+    const key = `inrage_streak_celebrated_${user?._id || 'me'}`;
+    try {
+      const last = Number((await AsyncStorage.getItem(key)) || 0);
+      if (streak !== last) {
+        await AsyncStorage.setItem(key, String(streak));
+        setCelebration(streak);
+      }
+    } catch {
+      setCelebration(streak);
+    }
+  }
+
   async function checkIn() {
     if (checking) return;
     setChecking(true);
     setCheckinError(null);
     try {
       await api.checkIn();
-      setAttendance(await api.myAttendance());
+      const fresh = await api.myAttendance();
+      setAttendance(fresh);
+      await maybeCelebrate(fresh?.streak);
     } catch (err) {
       setCheckinError(err.message);
     } finally {
@@ -806,6 +831,16 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
+          {attendance?.streak > 0 && (
+            <View style={styles.streakChip}>
+              <Ionicons name="flame" size={18} color="#FF7A1A" />
+              <Text style={styles.streakChipText}>
+                Racha de {attendance.streak} {attendance.streak === 1 ? 'día' : 'días'}
+                {!attendance.checkedInToday ? ' · entrena hoy para mantenerla' : ''}
+              </Text>
+            </View>
+          )}
+
           <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
             <Ionicons name="calendar-outline" size={18} color={colors.accent} />
             <Text style={styles.goToClassesText}>Ver y reservar clases</Text>
@@ -816,6 +851,20 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
           <GymFooter info={gymInfo} />
         </>
       )}
+
+      <Modal visible={!!celebration} transparent animationType="fade" onRequestClose={() => setCelebration(null)}>
+        <Pressable style={styles.celebBackdrop} onPress={() => setCelebration(null)}>
+          <Pressable style={styles.celebCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.celebEmoji}>🔥</Text>
+            <Text style={styles.celebStreak}>{celebration}</Text>
+            <Text style={styles.celebDays}>DÍAS DE RACHA</Text>
+            <Text style={styles.celebMsg}>{celebrationMessage(celebration)}</Text>
+            <Pressable style={styles.celebBtn} onPress={() => setCelebration(null)}>
+              <Text style={styles.celebBtnText}>¡SEGUIR ASÍ!</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1126,6 +1175,15 @@ export function WodScreen({ user, onGoToClasses }) {
       )}
     </ScrollView>
   );
+}
+
+function celebrationMessage(n) {
+  if (n >= 100) return '¡100 días! Eres parte del alma del box. Imparable. 🐐';
+  if (n >= 50) return '¡50 días de constancia brutal! Nada te detiene.';
+  if (n >= 30) return '¡30 días seguidos! Esto ya es estilo de vida. 💪';
+  if (n >= 20) return '¡20 días! Tu constancia contagia a todo el box.';
+  if (n >= 10) return '¡10 días seguidos! Vas con todo. 🚀';
+  return '¡5 días de racha! El hábito está naciendo. 💪';
 }
 
 function firstName(name) {
@@ -1558,6 +1616,37 @@ const styles = StyleSheet.create({
   },
   checkoutText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
   checkinError: { color: colors.danger, fontSize: 13, marginBottom: spacing.lg, textAlign: 'center' },
+
+  /* Racha */
+  streakChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,122,26,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,122,26,0.4)',
+    borderRadius: radii.md, paddingVertical: 10, paddingHorizontal: spacing.md,
+    marginBottom: spacing.md
+  },
+  streakChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700', flex: 1 },
+
+  /* Celebración de hito de racha */
+  celebBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center', justifyContent: 'center', padding: spacing.lg
+  },
+  celebCard: {
+    width: '100%', maxWidth: 340, alignItems: 'center',
+    backgroundColor: colors.surface, borderRadius: radii.lg,
+    borderWidth: 1, borderColor: 'rgba(255,122,26,0.5)',
+    padding: spacing.xl
+  },
+  celebEmoji: { fontSize: 56, marginBottom: spacing.sm },
+  celebStreak: { color: '#FF7A1A', fontFamily: type.display, fontSize: 72, letterSpacing: 1, lineHeight: 74 },
+  celebDays: { color: colors.textPrimary, fontFamily: type.display, fontSize: 22, letterSpacing: 3, marginBottom: spacing.md },
+  celebMsg: { color: colors.textMuted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: spacing.lg },
+  celebBtn: {
+    backgroundColor: colors.accent, borderRadius: radii.md,
+    paddingVertical: 14, paddingHorizontal: spacing.xl, alignSelf: 'stretch', alignItems: 'center'
+  },
+  celebBtnText: { color: '#05230b', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
 
   card: {
     backgroundColor: colors.surface,

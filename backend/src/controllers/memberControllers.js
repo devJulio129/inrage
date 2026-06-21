@@ -68,10 +68,11 @@ export async function updateMember(req, res, next) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Prevent non-admins from changing their role or approval status
+    // Prevent non-admins from changing their role, approval status or rank
     if (req.user.role !== 'admin') {
       delete req.body.role;
       delete req.body.status;
+      delete req.body.rank;
     }
 
     // If password is being updated, hash it
