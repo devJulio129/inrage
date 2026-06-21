@@ -870,18 +870,126 @@ export function ClassesScreen({ user }) {
   );
 }
 
-// ── WOD: el entrenamiento de hoy, tu dosis y la conversación ────────
+// ── Calendario de WODs ──────────────────────────────────────────────
+const WEEK_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+function ymdLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Celdas del mes (lunes primero). Cada celda es 'YYYY-MM-DD' o null (relleno).
+function monthCells(anchor) {
+  const year = anchor.getFullYear();
+  const month = anchor.getMonth();
+  const startDow = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(ymdLocal(new Date(year, month, d)));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function wodDayLabel(ymd, todayStr) {
+  if (ymd === todayStr) return 'HOY';
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(y, m - 1, d)
+    .toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+    .toUpperCase();
+}
+
+// Calendario del mes: hoy resaltado, punto lleno = WOD hecho, punto hueco =
+// WOD programado a futuro. Tocar un día lo selecciona.
+function WodCalendar({ anchor, byDay, selected, today, onSelect, onPrev, onNext }) {
+  const cells = monthCells(anchor);
+  return (
+    <View style={styles.cal}>
+      <View style={styles.calHead}>
+        <Pressable onPress={onPrev} hitSlop={10} style={styles.calNav}>
+          <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.calMonth}>{MONTHS_ES[anchor.getMonth()]} {anchor.getFullYear()}</Text>
+        <Pressable onPress={onNext} hitSlop={10} style={styles.calNav}>
+          <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+        </Pressable>
+      </View>
+
+      <View style={styles.calWeekRow}>
+        {WEEK_LABELS.map((w, i) => (
+          <Text key={i} style={styles.calWeekLabel}>{w}</Text>
+        ))}
+      </View>
+
+      <View style={styles.calGrid}>
+        {cells.map((day, i) => {
+          if (!day) return <View key={i} style={styles.calCell} />;
+          const has = Boolean(byDay[day]);
+          const isToday = day === today;
+          const isSelected = day === selected;
+          const isFuture = day > today;
+          return (
+            <Pressable key={i} style={styles.calCell} onPress={() => onSelect(day)}>
+              <View style={[
+                styles.calDayInner,
+                isSelected && styles.calDaySelected,
+                !isSelected && isToday && styles.calDayToday
+              ]}>
+                <Text style={[
+                  styles.calDayNum,
+                  isSelected ? styles.calDayNumSelected : isToday ? styles.calDayNumToday : null
+                ]}>
+                  {Number(day.slice(8, 10))}
+                </Text>
+              </View>
+              <View style={[styles.calDot, has && (isFuture ? styles.calDotFuture : styles.calDotDone)]} />
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.calLegend}>
+        <View style={styles.calLegendItem}>
+          <View style={[styles.calDot, styles.calDotDone]} />
+          <Text style={styles.calLegendText}>Hecho</Text>
+        </View>
+        <View style={styles.calLegendItem}>
+          <View style={[styles.calDot, styles.calDotFuture]} />
+          <Text style={styles.calLegendText}>Programado</Text>
+        </View>
+        <View style={styles.calLegendItem}>
+          <View style={styles.calLegendToday} />
+          <Text style={styles.calLegendText}>Hoy</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ── WOD: calendario + el entrenamiento del día seleccionado ─────────
 export function WodScreen({ user, onGoToClasses }) {
-  const [workout, setWorkout] = useState(null);
-  const [wodError, setWodError] = useState(null);
-  const [wodEmpty, setWodEmpty] = useState(false);
+  const todayStr = localDayStr();
+  const [anchor, setAnchor] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [byDay, setByDay] = useState({}); // 'YYYY-MM-DD' -> workout
+  const [selected, setSelected] = useState(todayStr);
+  const [prs, setPrs] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [prs, setPrs] = useState({});
-  const [recent, setRecent] = useState([]);
-  const [expandedId, setExpandedId] = useState(null);
+  const [error, setError] = useState(null);
 
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
+
+  async function loadMonth(a) {
+    const from = ymdLocal(new Date(a.getFullYear(), a.getMonth(), 1));
+    const to = ymdLocal(new Date(a.getFullYear(), a.getMonth() + 1, 0));
+    const list = await api.getWorkoutsRange(from, to);
+    const map = {};
+    for (const w of list || []) map[classDay(w.date)] = w;
+    setByDay(map);
+  }
 
   async function load() {
     if (!isActive) {
@@ -889,23 +997,17 @@ export function WodScreen({ user, onGoToClasses }) {
       setRefreshing(false);
       return;
     }
-    setWodError(null);
-    setWodEmpty(false);
+    setError(null);
     try {
-      setWorkout(await api.getTodayWorkout());
+      await loadMonth(anchor);
     } catch (err) {
-      setWorkout(null);
-      if (err.status === 404) setWodEmpty(true);
-      else setWodError(err.message);
+      setError(err.message);
     }
     try {
       const prList = await api.getPRs();
       const map = {};
       for (const pr of prList || []) map[pr.movement] = { value: pr.value, unit: pr.unit };
       setPrs(map);
-    } catch {}
-    try {
-      setRecent(await api.getRecentWorkouts());
     } catch {}
     setLoading(false);
     setRefreshing(false);
@@ -915,10 +1017,28 @@ export function WodScreen({ user, onGoToClasses }) {
     load();
   }, []);
 
+  // Al cambiar de mes, recarga solo ese mes (sin spinner global ni los PRs).
+  const monthMounted = useRef(false);
+  useEffect(() => {
+    if (!monthMounted.current) {
+      monthMounted.current = true;
+      return;
+    }
+    if (isActive) loadMonth(anchor).catch((err) => setError(err.message));
+  }, [anchor]);
+
   function onRefresh() {
     setRefreshing(true);
     load();
   }
+
+  function changeMonth(delta) {
+    setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + delta, 1));
+  }
+
+  const selectedWod = byDay[selected];
+  const selIsToday = selected === todayStr;
+  const selIsFuture = selected > todayStr;
 
   return (
     <ScrollView
@@ -932,7 +1052,7 @@ export function WodScreen({ user, onGoToClasses }) {
       <ScreenIntro
         eyebrow={formatDate(new Date())}
         title="WOD del día"
-        subtitle="Revisa el entrenamiento, tu dosis personalizada y la conversación del box."
+        subtitle="Tu calendario de entrenamientos: revisa los días anteriores y lo que viene."
         icon="barbell"
       />
 
@@ -949,75 +1069,57 @@ export function WodScreen({ user, onGoToClasses }) {
 
       {!loading && isActive && (
         <>
-          {wodEmpty && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorTitle}>Aún no hay WOD para hoy</Text>
-              <Text style={styles.errorText}>El gimnasio todavía no ha publicado el entrenamiento.</Text>
-              <Text style={styles.errorHint}>Desliza hacia abajo para actualizar.</Text>
-            </View>
-          )}
+          <WodCalendar
+            anchor={anchor}
+            byDay={byDay}
+            selected={selected}
+            today={todayStr}
+            onSelect={setSelected}
+            onPrev={() => changeMonth(-1)}
+            onNext={() => changeMonth(1)}
+          />
 
-          {wodError && (
+          {error && (
             <View style={styles.errorBox}>
-              <Text style={styles.errorTitle}>No se pudo cargar el WOD</Text>
-              <Text style={styles.errorText}>{wodError}</Text>
+              <Text style={styles.errorTitle}>No se pudo cargar el calendario</Text>
+              <Text style={styles.errorText}>{error}</Text>
               <Text style={styles.errorHint}>Desliza hacia abajo para reintentar.</Text>
             </View>
           )}
 
-          {workout && (
+          {selectedWod ? (
             <>
               <View style={styles.card}>
-                <Text style={styles.wodKicker}>WOD · {formatDate(new Date())}</Text>
-                <Text style={styles.title}>{workout.title}</Text>
+                <Text style={styles.wodKicker}>
+                  {wodDayLabel(selected, todayStr)}{selIsFuture ? ' · PROGRAMADO' : ''}
+                </Text>
+                <Text style={styles.title}>{selectedWod.title}</Text>
                 <View style={styles.divider} />
-                <Text style={styles.description}>{workout.description}</Text>
-                <Reactions targetType="workout" targetId={workout._id} />
+                <Text style={styles.description}>{selectedWod.description}</Text>
+                <Reactions targetType="workout" targetId={selectedWod._id} />
               </View>
-              {onGoToClasses && (
+              {selIsToday && onGoToClasses && (
                 <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
                   <Ionicons name="calendar-outline" size={18} color={colors.accent} />
                   <Text style={styles.goToClassesText}>Reserva tu lugar en la clase de hoy</Text>
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </Pressable>
               )}
-              <PersonalizedWod description={workout.description} prs={prs} />
-              <CommentsThread targetType="workout" targetId={workout._id} user={user} />
+              <PersonalizedWod description={selectedWod.description} prs={prs} />
+              <CommentsThread targetType="workout" targetId={selectedWod._id} user={user} />
             </>
-          )}
-
-          {recent.length > 0 && (
-            <View style={{ marginTop: spacing.xl }}>
-              <SectionHeader>WODS ANTERIORES</SectionHeader>
-              {recent.map((w) => {
-                const open = expandedId === w._id;
-                return (
-                  <View key={w._id} style={styles.histCard}>
-                    <Pressable
-                      style={styles.histHead}
-                      onPress={() => setExpandedId(open ? null : w._id)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.histDate}>{formatDate(new Date(w.date))}</Text>
-                        <Text style={styles.histName}>{w.title}</Text>
-                      </View>
-                      <Ionicons
-                        name={open ? 'chevron-up' : 'chevron-down'}
-                        size={18}
-                        color={colors.textMuted}
-                      />
-                    </Pressable>
-                    {open && (
-                      <View style={styles.histBody}>
-                        <Text style={styles.description}>{w.description}</Text>
-                        <Reactions targetType="workout" targetId={w._id} />
-                        <PersonalizedWod description={w.description} prs={prs} />
-                        <CommentsThread targetType="workout" targetId={w._id} user={user} />
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+          ) : (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorTitle}>
+                {selIsToday ? 'Aún no hay WOD para hoy' : selIsFuture ? 'Aún no se programa este día' : 'No hubo WOD este día'}
+              </Text>
+              <Text style={styles.errorText}>
+                {selIsFuture
+                  ? 'El gimnasio todavía no publica el entrenamiento de esa fecha.'
+                  : selIsToday
+                    ? 'El gimnasio todavía no ha publicado el entrenamiento.'
+                    : 'No se registró entrenamiento para la fecha seleccionada.'}
+              </Text>
             </View>
           )}
         </>
@@ -1075,6 +1177,46 @@ const styles = StyleSheet.create({
   },
   hello: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '700' },
   userName: { color: colors.textPrimary, fontFamily: type.display, fontSize: 36, letterSpacing: 1.2, marginTop: 1 },
+
+  /* Calendario de WODs */
+  cal: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg
+  },
+  calHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  calNav: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceAlt
+  },
+  calMonth: { color: colors.textPrimary, fontFamily: type.display, fontSize: 22, letterSpacing: 1 },
+  calWeekRow: { flexDirection: 'row', marginBottom: 4 },
+  calWeekLabel: { flex: 1, textAlign: 'center', color: colors.textFaint, fontSize: 11, fontWeight: '700' },
+  calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calCell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
+  calDayInner: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  calDayToday: { borderWidth: 1.5, borderColor: colors.accent },
+  calDaySelected: { backgroundColor: colors.accent },
+  calDayNum: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  calDayNumToday: { color: colors.accent, fontWeight: '800' },
+  calDayNumSelected: { color: '#05230b', fontWeight: '800' },
+  calDot: {
+    width: 6, height: 6, borderRadius: 3, marginTop: 3,
+    borderWidth: 1, borderColor: 'transparent', backgroundColor: 'transparent'
+  },
+  calDotDone: { backgroundColor: colors.accent, borderColor: colors.accent },
+  calDotFuture: { backgroundColor: 'transparent', borderColor: colors.accent },
+  calLegend: {
+    flexDirection: 'row', justifyContent: 'center', gap: spacing.md,
+    marginTop: spacing.sm, paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border
+  },
+  calLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  calLegendText: { color: colors.textMuted, fontSize: 11 },
+  calLegendToday: { width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: colors.accent },
 
   /* Próxima clase reservada */
   nextClass: {

@@ -130,6 +130,9 @@ export const api = {
 
   getTodayWorkout: () => request('/api/workouts/today'),
   getRecentWorkouts: () => request('/api/workouts/recent'),
+  // WODs en un rango de fechas (calendario): incluye los programados a futuro.
+  getWorkoutsRange: (from, to) =>
+    request(`/api/workouts/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
 
   // Perfil (el propio miembro puede actualizar sus datos)
   updateMember: (id, data) =>

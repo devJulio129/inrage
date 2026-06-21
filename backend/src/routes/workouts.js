@@ -3,6 +3,7 @@ import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import {
   getTodayWorkout,
   getRecentWorkouts,
+  getWorkoutsRange,
   listWorkouts,
   upsertWorkout,
   updateWorkout,
@@ -17,6 +18,7 @@ const router = Router();
 // Any logged-in member can see today's WOD (mobile app).
 router.get('/today', protect, getTodayWorkout);
 router.get('/recent', protect, getRecentWorkouts);
+router.get('/range', protect, getWorkoutsRange);
 
 // WOD comments (any approved member).
 router.get('/:id/comments', protect, listComments);
