@@ -374,6 +374,15 @@ input, select, textarea { font-family: inherit; }
   border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
 }
 .rank-remove:hover { color: var(--red); border-color: rgba(255, 75, 75, 0.4); }
+.pill-streak { background: rgba(255, 122, 26, 0.16); color: #FF7A1A; }
+.streak-edit { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.streak-edit-row { display: flex; gap: 8px; }
+.streak-edit-row input {
+  flex: 1; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 14px; color-scheme: dark;
+}
+.streak-edit-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
+.streak-hint { margin: 8px 0 0; font-size: 11px; color: var(--text-muted); }
 
 /* ───────────── WOD ───────────── */
 .wod-editor textarea {
@@ -861,7 +870,16 @@ input[type="file"] { color: var(--text-muted); font-size: 13px; }
 .bubble {
   max-width: 78%; padding: 10px 14px; border-radius: 16px;
   display: flex; flex-direction: column; gap: 6px;
+  position: relative;
 }
+.bubble-del {
+  position: absolute; top: -8px; right: -8px;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--border); background: #1b1b1b; color: var(--text-muted);
+  font-size: 11px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s ease;
+}
+.bubble:hover .bubble-del { opacity: 1; }
+.bubble-del:hover { color: var(--red); border-color: rgba(255, 75, 75, 0.5); }
 .bubble.mine {
   align-self: flex-end;
   background: linear-gradient(180deg, rgba(70,226,42,0.18), rgba(70,226,42,0.10));

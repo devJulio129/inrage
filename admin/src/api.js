@@ -43,6 +43,9 @@ export const api = {
     deleteMember: (id) =>
         request(`/api/members/${id}`, { method: 'DELETE' }),
 
+    setMemberStreak: (id, streak) =>
+        request(`/api/members/${id}/streak`, { method: 'PATCH', body: JSON.stringify({ streak }) }),
+
     listLoginLogs: () => request('/api/login-logs'),
 
     listWorkouts: () => request('/api/workouts'),
@@ -97,6 +100,8 @@ export const api = {
     thread: (memberId) => request(`/api/messages/member/${memberId}`),
     sendMessage: (memberId, data) =>
         request(`/api/messages/member/${memberId}`, { method: 'POST', body: JSON.stringify(data) }),
+    deleteMessage: (id) =>
+        request(`/api/messages/${id}`, { method: 'DELETE' }),
 
     // Reacciones — quién reaccionó
     reactionsWho: (targetType, targetId) =>

@@ -175,4 +175,18 @@ router.post('/member/:id', protect, adminOnly, async (req, res, next) => {
   }
 });
 
+// DELETE /api/messages/:id  (admin) — borra un mensaje de cualquier hilo.
+router.delete('/:id', protect, adminOnly, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: 'Mensaje inválido' });
+    }
+    const deleted = await Message.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: 'Mensaje no encontrado' });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

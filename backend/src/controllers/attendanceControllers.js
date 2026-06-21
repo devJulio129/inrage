@@ -1,27 +1,13 @@
 import { Attendance } from '../models/Attendance.js';
-
-// El box vive en UTC-6 (Tampico). Bucketizamos las asistencias por DÍA del gym
-// para que el check-in sea uno por día y la racha cuente días reales del box,
-// no medianoche UTC del server.
-const GYM_OFFSET_MS = Number(process.env.GYM_UTC_OFFSET_HOURS ?? -6) * 3600 * 1000;
-
-function gymDayStr(date) {
-  return new Date(new Date(date).getTime() + GYM_OFFSET_MS).toISOString().slice(0, 10);
-}
-function gymTodayStr() {
-  return gymDayStr(new Date());
-}
-function prevDayStr(s) {
-  const [y, m, d] = s.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() - 1);
-  return dt.toISOString().slice(0, 10);
-}
-// Instante UTC en que empieza ese día del gym (medianoche local del box).
-function gymDayStartUTC(dayStr) {
-  const [y, m, d] = dayStr.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d) - GYM_OFFSET_MS);
-}
+import { Member } from '../models/Member.js';
+import {
+  gymDayStr,
+  gymTodayStr,
+  prevDayStr,
+  gymDayStartUTC,
+  effectiveStreak,
+  streakFromDays
+} from '../services/gymTime.js';
 
 // Cualquier visita registrada HOY (con o sin salida).
 function findTodayVisit(memberId, todayStr = gymTodayStr()) {
@@ -30,44 +16,39 @@ function findTodayVisit(memberId, todayStr = gymTodayStr()) {
   return Attendance.findOne({ member: memberId, checkIn: { $gte: start, $lt: end } }).sort({ checkIn: -1 });
 }
 
-// Visita de hoy aún abierta (sin checkOut) → el atleta sigue en el box.
-function findOpenVisit(memberId, todayStr = gymTodayStr()) {
-  const start = gymDayStartUTC(todayStr);
-  const end = new Date(start.getTime() + 24 * 3600 * 1000);
-  return Attendance.findOne({ member: memberId, checkOut: null, checkIn: { $gte: start, $lt: end } });
+// Días únicos del gym con asistencia (para visitas y para inicializar la racha).
+async function attendanceDays(memberId) {
+  const rows = await Attendance.find({ member: memberId }).select('checkIn checkOut').lean();
+  return rows;
 }
 
-// Racha actual (días consecutivos terminando hoy o ayer) y la más larga.
-function computeStreak(daySet, todayStr) {
-  let current = 0;
-  let anchor = daySet.has(todayStr) ? todayStr : prevDayStr(todayStr);
-  if (daySet.has(anchor)) {
-    let d = anchor;
-    while (daySet.has(d)) {
-      current++;
-      d = prevDayStr(d);
-    }
+// Mantiene la racha del Member al registrar la PRIMERA visita del día.
+async function applyCheckInStreak(member, today) {
+  const yesterday = prevDayStr(today);
+  if (member.streakDay === today) return; // ya contó hoy
+  if (member.streakDay == null) {
+    // Primera vez que se calcula: arranca del histórico real (incluye hoy).
+    const rows = await attendanceDays(member._id);
+    const days = new Set(rows.map((r) => gymDayStr(r.checkIn)));
+    member.streak = streakFromDays(days, today).current || 1;
+  } else if (member.streakDay === yesterday) {
+    member.streak = (member.streak || 0) + 1; // día consecutivo
+  } else {
+    member.streak = 1; // hubo un hueco → la racha se reinicia
   }
-  let longest = 0;
-  let run = 0;
-  let prev = null;
-  for (const d of [...daySet].sort()) {
-    run = prev && prevDayStr(d) === prev ? run + 1 : 1;
-    if (run > longest) longest = run;
-    prev = d;
-  }
-  return { current, longest };
+  member.streakDay = today;
+  if ((member.streak || 0) > (member.longestStreak || 0)) member.longestStreak = member.streak;
+  await member.save();
 }
 
 // POST /api/attendances/checkin — marca llegada al box.
-// IDEMPOTENTE POR DÍA: si ya marcaste entrada hoy, no se crea otra visita
-// (así nadie infla su contador aplanando el botón). Cada día nuevo sí permite
-// un check-in nuevo.
+// IDEMPOTENTE POR DÍA: si ya marcaste entrada hoy, no se crea otra visita (así
+// nadie infla su contador aplanando el botón). Cada día nuevo sí cuenta.
 export async function checkIn(req, res, next) {
   try {
-    const existing = await findTodayVisit(req.user._id);
+    const today = gymTodayStr();
+    const existing = await findTodayVisit(req.user._id, today);
     if (existing) {
-      // Si ya había salido y regresa el mismo día, reabrimos sin contar otra visita.
       if (existing.checkOut) {
         existing.checkOut = null;
         await existing.save();
@@ -75,6 +56,8 @@ export async function checkIn(req, res, next) {
       return res.json({ status: 'in', attendance: existing, alreadyToday: true });
     }
     const attendance = await Attendance.create({ member: req.user._id, checkIn: new Date() });
+    const member = await Member.findById(req.user._id);
+    if (member) await applyCheckInStreak(member, today);
     res.status(201).json({ status: 'in', attendance, alreadyToday: false });
   } catch (err) {
     next(err);
@@ -84,7 +67,10 @@ export async function checkIn(req, res, next) {
 // POST /api/attendances/checkout — marca salida.
 export async function checkOut(req, res, next) {
   try {
-    const open = await findOpenVisit(req.user._id);
+    const today = gymTodayStr();
+    const start = gymDayStartUTC(today);
+    const end = new Date(start.getTime() + 24 * 3600 * 1000);
+    const open = await Attendance.findOne({ member: req.user._id, checkOut: null, checkIn: { $gte: start, $lt: end } });
     if (!open) return res.json({ status: 'out', attendance: null });
     open.checkOut = new Date();
     await open.save();
@@ -94,25 +80,40 @@ export async function checkOut(req, res, next) {
   }
 }
 
-// GET /api/attendances/me — presencia actual + visitas (días únicos) + racha.
+// GET /api/attendances/me — presencia + visitas (días únicos) + racha.
+// Aplica el "reset perezoso": si dejaron de ir, la racha guardada baja a 0.
 export async function myAttendance(req, res, next) {
   try {
     const today = gymTodayStr();
-    const open = await findOpenVisit(req.user._id, today);
-
-    // Visitas = días ÚNICOS con asistencia (robusto aunque haya duplicados viejos).
-    const rows = await Attendance.find({ member: req.user._id }).select('checkIn').lean();
+    const rows = await attendanceDays(req.user._id);
     const days = new Set(rows.map((r) => gymDayStr(r.checkIn)));
-    const { current, longest } = computeStreak(days, today);
+    const totalVisits = days.size;
+    const checkedInToday = days.has(today);
+    const open = rows.find((r) => !r.checkOut && gymDayStr(r.checkIn) === today) || null;
 
-    res.json({
-      inGym: Boolean(open),
-      since: open?.checkIn || null,
-      totalVisits: days.size,
-      streak: current,
-      longestStreak: longest,
-      checkedInToday: days.has(today)
-    });
+    const member = await Member.findById(req.user._id);
+    let streak = 0;
+    let longest = 0;
+    if (member) {
+      // Inicializa desde el histórico la primera vez.
+      if (member.streakDay == null && totalVisits > 0) {
+        const c = streakFromDays(days, today);
+        member.streak = c.current;
+        member.streakDay = c.anchor;
+        member.longestStreak = Math.max(member.longestStreak || 0, c.longest);
+        if (member.streakDay) await member.save();
+      }
+      streak = effectiveStreak(member, today);
+      // Dejaron de ir → la racha se pierde (persiste el 0).
+      if (streak === 0 && (member.streak || 0) !== 0) {
+        member.streak = 0;
+        member.streakDay = null;
+        await member.save();
+      }
+      longest = member.longestStreak || 0;
+    }
+
+    res.json({ inGym: Boolean(open), since: open?.checkIn || null, totalVisits, streak, longestStreak: longest, checkedInToday });
   } catch (err) {
     next(err);
   }

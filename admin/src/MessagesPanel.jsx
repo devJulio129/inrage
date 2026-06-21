@@ -100,6 +100,13 @@ export default function MessagesPanel({ initialMemberId, members }) {
     }
   }
 
+  function deleteMsg(m) {
+    if (!window.confirm('¿Borrar este mensaje? No se puede deshacer.')) return;
+    api.deleteMessage(m._id)
+      .then(() => { setThread((prev) => prev.filter((x) => x._id !== m._id)); fetchInbox(); })
+      .catch((err) => setMsg('Error: ' + err.message));
+  }
+
   async function send(e) {
     e.preventDefault();
     if ((!text.trim() && pending.length === 0) || sending) return;
@@ -138,6 +145,7 @@ export default function MessagesPanel({ initialMemberId, members }) {
           )}
           {thread.map((m) => (
             <div key={m._id} className={`bubble ${m.fromAdmin ? 'mine' : 'theirs'}`}>
+              <button className="bubble-del" title="Borrar mensaje" onClick={() => deleteMsg(m)}>✕</button>
               {m.body && <p className="bubble-text">{m.body}</p>}
               {m.attachments?.map((a, i) => <Attachment key={i} a={a} />)}
               <span className="bubble-time">{timeShort(m.createdAt)}</span>

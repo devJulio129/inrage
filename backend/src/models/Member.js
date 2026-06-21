@@ -33,6 +33,11 @@ const memberSchema = new mongoose.Schema(
       enum: ['rookie', 'intermedio', 'avanzado', 'elite', 'leyenda'],
       default: null
     },
+    // Racha de asistencia (días consecutivos). Se mantiene al hacer check-in y
+    // se pierde sola cuando dejan de ir; el admin también puede ajustarla.
+    streak: { type: Number, default: 0, min: 0 },
+    streakDay: { type: String, default: null }, // 'YYYY-MM-DD' del último día contado
+    longestStreak: { type: Number, default: 0, min: 0 },
     avatar: { type: String, default: null },
   },
   { timestamps: true },

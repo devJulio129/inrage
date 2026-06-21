@@ -2,7 +2,7 @@
   "expo": {
     "name": "InRage CrossFit",
     "slug": "inrage",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "scheme": "inrage",
     "icon": "./assets/icon.png",

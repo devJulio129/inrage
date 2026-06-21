@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Member } from '../models/Member.js';
 import { LoginLog } from '../models/LoginLog.js';
+import { gymTodayStr, effectiveStreak } from '../services/gymTime.js';
 
 export async function listMembers(req, res, next) {
   try {
@@ -15,8 +16,11 @@ export async function listMembers(req, res, next) {
       lastLogins.map((l) => [String(l._id), l.lastLogin])
     );
 
+    const today = gymTodayStr();
     const withStatus = members.map((m) => ({
       ...m,
+      // Racha "viva" (0 si dejaron de ir), para que el admin la vea al día.
+      streak: effectiveStreak(m, today),
       lastLogin: lastById.get(String(m._id)) || null
     }));
 
@@ -68,11 +72,14 @@ export async function updateMember(req, res, next) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Prevent non-admins from changing their role, approval status or rank
+    // Prevent non-admins from changing their role, approval status, rank or streak
     if (req.user.role !== 'admin') {
       delete req.body.role;
       delete req.body.status;
       delete req.body.rank;
+      delete req.body.streak;
+      delete req.body.streakDay;
+      delete req.body.longestStreak;
     }
 
     // If password is being updated, hash it
@@ -89,6 +96,30 @@ export async function updateMember(req, res, next) {
     if (!member) return res.status(404).json({ error: 'Member not found' });
 
     res.json(member);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/members/:id/streak  (admin) — ver/ajustar la racha a mano.
+// Fija el valor y marca "hoy" como último día contado, así sigue creciendo
+// con los próximos check-ins y se pierde sola si dejan de ir.
+export async function setMemberStreak(req, res, next) {
+  try {
+    const value = Math.max(0, Math.floor(Number(req.body.streak)));
+    if (!Number.isFinite(value)) return res.status(400).json({ error: 'Racha inválida' });
+
+    const member = await Member.findById(req.params.id);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+
+    member.streak = value;
+    member.streakDay = value > 0 ? gymTodayStr() : null;
+    if (value > (member.longestStreak || 0)) member.longestStreak = value;
+    await member.save();
+
+    const obj = member.toObject();
+    delete obj.password;
+    res.json({ ...obj, streak: effectiveStreak(member) });
   } catch (err) {
     next(err);
   }

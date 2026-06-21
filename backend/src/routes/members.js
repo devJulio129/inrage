@@ -5,6 +5,7 @@ import {
   getMember,
   createMember,
   updateMember,
+  setMemberStreak,
   deleteMember
 } from '../controllers/memberControllers.js';
 
@@ -14,6 +15,7 @@ memberRoutes.get('/',     protect, adminOnly, listMembers);
 memberRoutes.get('/:id',  protect, getMember);
 memberRoutes.post('/',    protect, adminOnly, createMember);
 memberRoutes.put('/:id',  protect, updateMember);
+memberRoutes.patch('/:id/streak', protect, adminOnly, setMemberStreak);
 memberRoutes.delete('/:id', protect, adminOnly, deleteMember);
 
 export default memberRoutes;

@@ -257,6 +257,7 @@ export default function App() {
   // Create / Edit
   const [showForm, setShowForm] = useState(false);
   const [rankMember, setRankMember] = useState(null);
+  const [streakInput, setStreakInput] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState(null);
@@ -598,6 +599,20 @@ export default function App() {
       .catch(err => alert('Error: ' + err.message));
   }
 
+  function openRankPopover(member) {
+    const isOpen = rankMember?._id === member._id;
+    setRankMember(isOpen ? null : member);
+    setStreakInput(isOpen ? '' : String(member.streak ?? 0));
+  }
+
+  function handleSetStreak(member) {
+    const v = Math.max(0, Math.floor(Number(streakInput)));
+    if (!Number.isFinite(v)) return;
+    api.setMemberStreak(member._id, v)
+      .then(() => { setRankMember(null); fetchMembers(); })
+      .catch(err => alert('Error: ' + err.message));
+  }
+
   function handleApprove(member) {
     api.updateMember(member._id, { status: 'active' })
       .then(() => { fetchMembers(); if (tab === 'logs') fetchLogs(); })
@@ -864,6 +879,9 @@ export default function App() {
                     {member.rank && (
                       <span className={`pill rank-${member.rank}`}>{rankLabel(member.rank)}</span>
                     )}
+                    {member.role !== 'admin' && member.streak > 0 && (
+                      <span className="pill pill-streak" title="Racha de asistencia">🔥 {member.streak}</span>
+                    )}
                   </h3>
                   <p className="email">{member.email}</p>
                   <p className="meta">
@@ -884,12 +902,7 @@ export default function App() {
                   )}
                   <button className="btn-ghost" onClick={() => { setMsgMemberId(member._id); setTab('messages'); }}>Mensaje</button>
                   {member.role !== 'admin' && (
-                    <button
-                      className="btn-ghost"
-                      onClick={() => setRankMember(rankMember?._id === member._id ? null : member)}
-                    >
-                      Rango
-                    </button>
+                    <button className="btn-ghost" onClick={() => openRankPopover(member)}>Rango / racha</button>
                   )}
                   <button className="btn-ghost" onClick={() => openEdit(member)}>Editar</button>
                   <button className="btn-danger" onClick={() => handleDelete(member)}>Eliminar</button>
@@ -898,7 +911,7 @@ export default function App() {
                     <>
                       <div className="popover-backdrop" onClick={() => setRankMember(null)} />
                       <div className="rank-popover">
-                        <p className="rank-popover-title">Asignar rango</p>
+                        <p className="rank-popover-title">Rango</p>
                         <div className="rank-options">
                           {RANKS.map(r => (
                             <button
@@ -911,6 +924,18 @@ export default function App() {
                           ))}
                         </div>
                         <button className="rank-remove" onClick={() => handleSetRank(member, null)}>Quitar rango</button>
+
+                        <div className="streak-edit">
+                          <p className="rank-popover-title">Racha (días)</p>
+                          <div className="streak-edit-row">
+                            <input
+                              type="number" min="0" value={streakInput}
+                              onChange={e => setStreakInput(e.target.value)}
+                            />
+                            <button className="btn-primary btn-sm" onClick={() => handleSetStreak(member)}>Guardar</button>
+                          </div>
+                          <p className="streak-hint">Crece con cada check-in y se pierde sola si deja de ir.</p>
+                        </div>
                       </div>
                     </>
                   )}
