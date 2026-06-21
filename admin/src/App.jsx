@@ -884,10 +884,36 @@ export default function App() {
                   )}
                   <button className="btn-ghost" onClick={() => { setMsgMemberId(member._id); setTab('messages'); }}>Mensaje</button>
                   {member.role !== 'admin' && (
-                    <button className="btn-ghost" onClick={() => setRankMember(member)}>Rango</button>
+                    <button
+                      className="btn-ghost"
+                      onClick={() => setRankMember(rankMember?._id === member._id ? null : member)}
+                    >
+                      Rango
+                    </button>
                   )}
                   <button className="btn-ghost" onClick={() => openEdit(member)}>Editar</button>
                   <button className="btn-danger" onClick={() => handleDelete(member)}>Eliminar</button>
+
+                  {rankMember?._id === member._id && (
+                    <>
+                      <div className="popover-backdrop" onClick={() => setRankMember(null)} />
+                      <div className="rank-popover">
+                        <p className="rank-popover-title">Asignar rango</p>
+                        <div className="rank-options">
+                          {RANKS.map(r => (
+                            <button
+                              key={r.key}
+                              className={`rank-option rank-${r.key}${member.rank === r.key ? ' selected' : ''}`}
+                              onClick={() => handleSetRank(member, r.key)}
+                            >
+                              {r.label}
+                            </button>
+                          ))}
+                        </div>
+                        <button className="rank-remove" onClick={() => handleSetRank(member, null)}>Quitar rango</button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );
@@ -936,31 +962,6 @@ export default function App() {
             </div>
           )}
 
-          {rankMember && (
-            <div className="modal-overlay" onClick={() => setRankMember(null)}>
-              <div className="modal" onClick={e => e.stopPropagation()}>
-                <h3>Rango de {rankMember.name}</h3>
-                <p className="muted" style={{ marginTop: 0 }}>
-                  Asígnalo según su tiempo entrenando y sus pesos. Se ve en su perfil de la app.
-                </p>
-                <div className="rank-options">
-                  {RANKS.map(r => (
-                    <button
-                      key={r.key}
-                      className={`rank-option rank-${r.key}${rankMember.rank === r.key ? ' selected' : ''}`}
-                      onClick={() => handleSetRank(rankMember, r.key)}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="row" style={{ marginTop: 16 }}>
-                  <button className="btn-ghost" onClick={() => handleSetRank(rankMember, null)}>Quitar rango</button>
-                  <button className="btn-ghost" onClick={() => setRankMember(null)}>Cerrar</button>
-                </div>
-              </div>
-            </div>
-          )}
         </section>
       )}
 

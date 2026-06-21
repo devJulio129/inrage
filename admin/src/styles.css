@@ -351,7 +351,29 @@ input, select, textarea { font-family: inherit; }
 .email { margin: 0 0 3px; font-size: 13px; color: var(--text); }
 .meta { margin: 0 0 3px; font-size: 12px; color: var(--text-muted); }
 .sub { margin: 0; font-size: 11px; color: var(--text-muted); opacity: .8; }
-.actions { display: flex; gap: 6px; flex-shrink: 0; }
+.actions { display: flex; gap: 6px; flex-shrink: 0; position: relative; }
+
+/* Popover de rango: aparece pegado al botón, no en el centro */
+.popover-backdrop { position: fixed; inset: 0; z-index: 30; background: transparent; }
+.rank-popover {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  width: 250px; max-width: 80vw;
+  background: linear-gradient(180deg, #1f1f1f, #181818);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px; padding: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.rank-popover-title {
+  margin: 0 0 8px; font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.rank-popover .rank-option { padding: 7px 13px; font-size: 13px; }
+.rank-remove {
+  margin-top: 10px; width: 100%;
+  border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+  border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rank-remove:hover { color: var(--red); border-color: rgba(255, 75, 75, 0.4); }
 
 /* ───────────── WOD ───────────── */
 .wod-editor textarea {

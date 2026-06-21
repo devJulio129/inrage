@@ -831,16 +831,6 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
 
-          {attendance?.streak > 0 && (
-            <View style={styles.streakChip}>
-              <Ionicons name="flame" size={18} color="#FF7A1A" />
-              <Text style={styles.streakChipText}>
-                Racha de {attendance.streak} {attendance.streak === 1 ? 'día' : 'días'}
-                {!attendance.checkedInToday ? ' · entrena hoy para mantenerla' : ''}
-              </Text>
-            </View>
-          )}
-
           <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
             <Ionicons name="calendar-outline" size={18} color={colors.accent} />
             <Text style={styles.goToClassesText}>Ver y reservar clases</Text>
@@ -1616,16 +1606,6 @@ const styles = StyleSheet.create({
   },
   checkoutText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
   checkinError: { color: colors.danger, fontSize: 13, marginBottom: spacing.lg, textAlign: 'center' },
-
-  /* Racha */
-  streakChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,122,26,0.10)',
-    borderWidth: 1, borderColor: 'rgba(255,122,26,0.4)',
-    borderRadius: radii.md, paddingVertical: 10, paddingHorizontal: spacing.md,
-    marginBottom: spacing.md
-  },
-  streakChipText: { color: colors.textPrimary, fontSize: 13, fontWeight: '700', flex: 1 },
 
   /* Celebración de hito de racha */
   celebBackdrop: {
