@@ -81,6 +81,12 @@ export const api = {
     createClass: (data) =>
         request('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
     deleteClass: (id) => request(`/api/classes/${id}`, { method: 'DELETE' }),
+    listTodayClasses: () => request('/api/classes/admin/today'),
+    getClassRoster: (id) => request(`/api/classes/${id}/roster`),
+    getCurrentCheckInToken: (id) => request(`/api/classes/${id}/check-in-token/current`),
+    createCheckInToken: (id) => request(`/api/classes/${id}/check-in-token`, { method: 'POST' }),
+    manualClassCheckIn: (classId, memberId) =>
+        request(`/api/classes/${classId}/check-in/${memberId}`, { method: 'POST' }),
 
     // Horario semanal (franjas recurrentes que se materializan en clases)
     listClassTemplates: () => request('/api/class-templates'),

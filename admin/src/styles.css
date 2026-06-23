@@ -732,6 +732,168 @@ input, select, textarea { font-family: inherit; }
 .spots-badge.full { color: var(--red); background: rgba(255,75,75,0.12); }
 .class-info h3 .pill { margin-left: 8px; font-size: 10px; vertical-align: middle; }
 
+/* Check-in operativo */
+.checkin-intro { margin: -4px 0 16px; font-size: 13px; }
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+.checkin-class-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-left: 3px solid var(--accent);
+}
+.checkin-class-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+.checkin-class-head h3 { margin: 0; font-size: 18px; }
+.checkin-time {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.checkin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.checkin-metric {
+  background: rgba(0,0,0,0.22);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  min-width: 0;
+}
+.checkin-metric span {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.checkin-metric strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  color: var(--text);
+}
+.checkin-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.modal-head h3 { margin: 0 0 4px; font-size: 22px; }
+.modal-kicker {
+  margin: 0 0 5px;
+  color: var(--accent);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+}
+.modal-wide { max-width: 920px; }
+.roster-counts { margin-bottom: 18px; }
+.roster-group {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+.roster-group h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--text-muted);
+}
+.roster-empty { margin: 0; font-size: 13px; }
+.roster-athlete {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(260px, 1.4fr) auto;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 8px;
+}
+.roster-athlete-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.roster-athlete-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roster-athlete-main span,
+.roster-athlete-meta span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.roster-athlete-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+}
+.qr-modal { max-width: 560px; }
+.qr-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.qr-box {
+  background: #fff;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.2), 0 18px 40px rgba(0,0,0,0.45);
+}
+.qr-box canvas {
+  display: block;
+  width: min(320px, 72vw) !important;
+  height: min(320px, 72vw) !important;
+}
+.qr-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  background: rgba(70,226,42,0.12);
+  border: 1px solid rgba(70,226,42,0.35);
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+.qr-meta strong {
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+}
+.qr-meta span { color: var(--text-muted); font-size: 13px; }
+
 /* ───────────── Horario semanal (recurrente) ───────────── */
 .schedule-editor { padding: 22px; margin-bottom: 22px; }
 .schedule-add { margin-bottom: 18px; }
@@ -969,6 +1131,13 @@ input[type="file"] { color: var(--text-muted); font-size: 13px; }
   .log-card { align-items: flex-start; gap: 10px; }
   .kpi-value { font-size: 36px; }
   .bars { height: 120px; }
+  .checkin-grid { grid-template-columns: 1fr; }
+  .checkin-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .checkin-actions { flex-direction: column; }
+  .checkin-actions button { width: 100%; }
+  .roster-athlete { grid-template-columns: 1fr; align-items: stretch; }
+  .roster-athlete .btn-primary { width: 100%; }
+  .modal-head { flex-direction: column; }
   /* On narrow screens only every 3rd date label fits without overflowing */
   .bar-label { display: none; }
   .bar-col:nth-child(3n + 1) .bar-label { display: block; }
