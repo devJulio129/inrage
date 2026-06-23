@@ -702,22 +702,6 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
     }
   }
 
-  async function checkIn() {
-    if (checking) return;
-    setChecking(true);
-    setCheckinError(null);
-    try {
-      await api.checkIn();
-      const fresh = await api.myAttendance();
-      setAttendance(fresh);
-      await maybeCelebrate(fresh?.streak);
-    } catch (err) {
-      setCheckinError(err.message);
-    } finally {
-      setChecking(false);
-    }
-  }
-
   async function checkOut() {
     const ok = await confirmAsync('Marcar salida', '¿Terminaste tu entrenamiento por hoy?', 'Salir');
     if (!ok) return;
@@ -796,7 +780,7 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
       {/* ACTIVO: check-in como acción propia + info del box */}
       {!loading && isActive && (
         <>
-          {/* Check-in: registra tu visita al llegar (pronto via código QR) */}
+          {/* Check-in: QR flow coming in the next mobile sprint. */}
           {inGym ? (
             <Animated.View style={{ opacity: insideOpacity, transform: [{ translateY: insideShift }] }}>
               <View style={styles.statusRow}>
@@ -816,17 +800,15 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
           ) : (
             <Animated.View style={[styles.checkinCard, { transform: [{ scale: heroScale }] }]}>
               <View style={styles.checkinIconWrap}>
-                <Ionicons name="barbell" size={22} color={colors.accent} />
+                <Ionicons name="qr-code-outline" size={22} color={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.checkinTitle}>¿Ya llegaste al box?</Text>
-                <Text style={styles.checkinSub}>Marca tu entrada para registrar tu visita</Text>
+                <Text style={styles.checkinTitle}>Check-in por QR proximamente</Text>
+                <Text style={styles.checkinSub}>Escanea el QR del box para confirmar tu asistencia</Text>
               </View>
-              <Pressable onPress={checkIn} disabled={checking} style={styles.checkinBtn}>
-                {checking
-                  ? <ActivityIndicator size="small" color="#05230b" />
-                  : <Text style={styles.checkinBtnText}>ENTRAR</Text>}
-              </Pressable>
+              <View style={[styles.checkinBtn, styles.checkinBtnDisabled]}>
+                <Text style={[styles.checkinBtnText, styles.checkinBtnTextDisabled]}>QR</Text>
+              </View>
             </Animated.View>
           )}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
@@ -1385,6 +1367,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 }
   },
   checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 17, letterSpacing: 1.5 },
+  checkinBtnDisabled: {
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowOpacity: 0
+  },
+  checkinBtnTextDisabled: { color: colors.textMuted },
 
   goToClasses: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,

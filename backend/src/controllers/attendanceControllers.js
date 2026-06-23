@@ -3,62 +3,23 @@ import { Member } from '../models/Member.js';
 import {
   gymDayStr,
   gymTodayStr,
-  prevDayStr,
   gymDayStartUTC,
   effectiveStreak,
   streakFromDays
 } from '../services/gymTime.js';
-
-// Cualquier visita registrada HOY (con o sin salida).
-function findTodayVisit(memberId, todayStr = gymTodayStr()) {
-  const start = gymDayStartUTC(todayStr);
-  const end = new Date(start.getTime() + 24 * 3600 * 1000);
-  return Attendance.findOne({ member: memberId, checkIn: { $gte: start, $lt: end } }).sort({ checkIn: -1 });
-}
-
-// Días únicos del gym con asistencia (para visitas y para inicializar la racha).
-async function attendanceDays(memberId) {
-  const rows = await Attendance.find({ member: memberId }).select('checkIn checkOut').lean();
-  return rows;
-}
-
-// Mantiene la racha del Member al registrar la PRIMERA visita del día.
-async function applyCheckInStreak(member, today) {
-  const yesterday = prevDayStr(today);
-  if (member.streakDay === today) return; // ya contó hoy
-  if (member.streakDay == null) {
-    // Primera vez que se calcula: arranca del histórico real (incluye hoy).
-    const rows = await attendanceDays(member._id);
-    const days = new Set(rows.map((r) => gymDayStr(r.checkIn)));
-    member.streak = streakFromDays(days, today).current || 1;
-  } else if (member.streakDay === yesterday) {
-    member.streak = (member.streak || 0) + 1; // día consecutivo
-  } else {
-    member.streak = 1; // hubo un hueco → la racha se reinicia
-  }
-  member.streakDay = today;
-  if ((member.streak || 0) > (member.longestStreak || 0)) member.longestStreak = member.streak;
-  await member.save();
-}
+import {
+  attendanceDayWindow,
+  attendanceDays,
+  createAttendanceIfMissing
+} from '../services/attendance.js';
 
 // POST /api/attendances/checkin — marca llegada al box.
 // IDEMPOTENTE POR DÍA: si ya marcaste entrada hoy, no se crea otra visita (así
 // nadie infla su contador aplanando el botón). Cada día nuevo sí cuenta.
 export async function checkIn(req, res, next) {
   try {
-    const today = gymTodayStr();
-    const existing = await findTodayVisit(req.user._id, today);
-    if (existing) {
-      if (existing.checkOut) {
-        existing.checkOut = null;
-        await existing.save();
-      }
-      return res.json({ status: 'in', attendance: existing, alreadyToday: true });
-    }
-    const attendance = await Attendance.create({ member: req.user._id, checkIn: new Date() });
-    const member = await Member.findById(req.user._id);
-    if (member) await applyCheckInStreak(member, today);
-    res.status(201).json({ status: 'in', attendance, alreadyToday: false });
+    const { attendance, created } = await createAttendanceIfMissing(req.user._id);
+    res.status(created ? 201 : 200).json({ status: 'in', attendance, alreadyToday: !created });
   } catch (err) {
     next(err);
   }
@@ -68,9 +29,12 @@ export async function checkIn(req, res, next) {
 export async function checkOut(req, res, next) {
   try {
     const today = gymTodayStr();
-    const start = gymDayStartUTC(today);
-    const end = new Date(start.getTime() + 24 * 3600 * 1000);
-    const open = await Attendance.findOne({ member: req.user._id, checkOut: null, checkIn: { $gte: start, $lt: end } });
+    const { start, end } = attendanceDayWindow(today);
+    const open = await Attendance.findOne({
+      member: req.user._id,
+      checkOut: null,
+      checkIn: { $gte: start, $lt: end }
+    });
     if (!open) return res.json({ status: 'out', attendance: null });
     open.checkOut = new Date();
     await open.save();

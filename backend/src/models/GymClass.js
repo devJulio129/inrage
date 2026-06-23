@@ -12,7 +12,22 @@ const gymClassSchema = new mongoose.Schema(
     reservations: [
       {
         member: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', required: true },
-        at: { type: Date, default: Date.now }
+        // Legacy field kept for old reservations created before v1.3.0.
+        at: { type: Date, default: Date.now },
+        status: {
+          type: String,
+          enum: ['reserved', 'checked_in', 'cancelled', 'no_show', 'waitlist'],
+          default: 'reserved'
+        },
+        reservedAt: { type: Date },
+        cancelledAt: { type: Date },
+        checkedInAt: { type: Date },
+        checkInMethod: {
+          type: String,
+          enum: ['qr_scan', 'admin_manual']
+        },
+        checkedInBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Member' },
+        notes: { type: String, trim: true, maxlength: 500 }
       }
     ]
   },
