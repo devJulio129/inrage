@@ -88,6 +88,31 @@ export const api = {
     manualClassCheckIn: (classId, memberId) =>
         request(`/api/classes/${classId}/check-in/${memberId}`, { method: 'POST' }),
 
+    // Negocio y membresias
+    getBusinessOverview: () => request('/api/admin/business/overview'),
+    getAthletesRisk: () => request('/api/admin/business/athletes-risk'),
+    getClassPerformance: () => request('/api/admin/business/class-performance'),
+    getMembershipOverview: () => request('/api/admin/memberships/overview'),
+    listMemberships: ({ status = 'all', search = '' } = {}) =>
+        request(`/api/admin/memberships?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`),
+    updateMembership: (memberId, data) =>
+        request(`/api/admin/memberships/${memberId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
+    markMembershipPaid: (memberId, data) =>
+        request(`/api/admin/memberships/${memberId}/mark-paid`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    sendMembershipReminder: (memberId, data = {}) =>
+        request(`/api/admin/memberships/${memberId}/send-reminder`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    runMembershipReminders: () =>
+        request('/api/admin/memberships/run-reminders', { method: 'POST' }),
+
     // Horario semanal (franjas recurrentes que se materializan en clases)
     listClassTemplates: () => request('/api/class-templates'),
     createClassTemplate: (data) =>

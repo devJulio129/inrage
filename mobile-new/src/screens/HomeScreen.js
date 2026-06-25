@@ -21,6 +21,7 @@ import GymInfo from '../components/GymInfo';
 import Reactions from '../components/Reactions';
 import Avatar from '../components/Avatar';
 import CommentsThread from '../components/CommentsThread';
+import QrCheckInScanner from '../components/QrCheckInScanner';
 import { timeAgo, confirmAsync, youtubeId } from '../utils';
 import { fmtSecs } from './ProfileScreen';
 
@@ -243,6 +244,25 @@ function nextReservedClass(classes) {
     })
     .filter((c) => c.when > now - 2 * 3600 * 1000)
     .sort((a, b) => a.when - b.when)[0] || null;
+}
+
+function nextCheckInClass(classes) {
+  const now = Date.now();
+  const candidates = (classes || [])
+    .map((c) => {
+      const status = c.myReservationStatus || (c.mine ? 'reserved' : null);
+      if (!status) return null;
+      const [yy, mm, dd] = classDay(c.date).split('-').map(Number);
+      const [h, m] = String(c.time).split(':').map(Number);
+      return { ...c, myReservationStatus: status, when: new Date(yy, mm - 1, dd, h || 0, m || 0).getTime() };
+    })
+    .filter(Boolean)
+    .filter((c) => c.when > now - 2 * 3600 * 1000)
+    .sort((a, b) => a.when - b.when);
+
+  return candidates.find((c) => c.myReservationStatus === 'reserved' || c.myReservationStatus === 'checked_in')
+    || candidates[0]
+    || null;
 }
 
 // Encabezado de sección: barra de acento + título display (ritmo visual).
@@ -598,6 +618,8 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
   const [attendance, setAttendance] = useState(null);
   const [checking, setChecking] = useState(false);
   const [checkinError, setCheckinError] = useState(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [checkinMsg, setCheckinMsg] = useState(null);
   const [celebration, setCelebration] = useState(null); // racha alcanzada a celebrar
 
   const [gymInfo, setGymInfo] = useState(null);
@@ -717,10 +739,37 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
     }
   }
 
+  async function submitQrCheckIn(token) {
+    setChecking(true);
+    setCheckinError(null);
+    setCheckinMsg(null);
+    try {
+      const result = await api.checkInWithQr(token);
+      const freshAttendance = await api.myAttendance().catch(() => null);
+      const freshClasses = await api.getClasses().catch(() => null);
+      if (freshAttendance) {
+        setAttendance(freshAttendance);
+        await maybeCelebrate(freshAttendance?.streak);
+      }
+      if (freshClasses) setClasses(freshClasses);
+      setCheckinMsg(result?.alreadyCheckedIn ? 'Ya hiciste check-in.' : 'Check-in confirmado.');
+      return result;
+    } catch (err) {
+      throw err;
+    } finally {
+      setChecking(false);
+    }
+  }
+
   const heroScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] });
   const insideOpacity = insideAnim;
   const insideShift = insideAnim.interpolate({ inputRange: [0, 1], outputRange: [26, 0] });
   const nextClass = nextReservedClass(classes);
+  const checkInClass = nextCheckInClass(classes);
+  const checkInStatus = checkInClass?.myReservationStatus || null;
+  const canScanQr = checkInStatus === 'reserved';
+  const membership = user?.membership;
+  const membershipNeedsAttention = membership?.status === 'expiring_soon' || membership?.status === 'expired';
 
   return (
     <ScrollView
@@ -754,6 +803,36 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
         </View>
       ) : null}
 
+      {!loading && membershipNeedsAttention ? (
+        <View style={[
+          styles.membershipBanner,
+          membership.status === 'expired' && styles.membershipBannerExpired
+        ]}>
+          <View style={styles.membershipBannerIcon}>
+            <Ionicons
+              name={membership.status === 'expired' ? 'alert-circle-outline' : 'calendar-outline'}
+              size={21}
+              color={membership.status === 'expired' ? colors.danger : '#F2C037'}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[
+              styles.membershipBannerTitle,
+              membership.status === 'expired' && styles.membershipBannerTitleExpired
+            ]}>
+              {membership.status === 'expired' ? 'Tu mensualidad esta vencida' : 'Tu mensualidad vence pronto'}
+            </Text>
+            <Text style={styles.membershipBannerText}>
+              {membership.status === 'expired'
+                ? 'Renueva con tu coach para mantener tu acceso activo.'
+                : membership.endDate
+                  ? `Vence el ${new Date(membership.endDate).toLocaleDateString('es-MX', { timeZone: 'UTC' })}. Habla con tu coach para renovar.`
+                  : 'Habla con tu coach para revisar la fecha de renovacion.'}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       {!loading && gymInfo?.announcement ? (
         <View style={styles.announce}>
           <Text style={styles.announceLabel}>📣 AVISO DEL GIMNASIO</Text>
@@ -780,8 +859,28 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
       {/* ACTIVO: check-in como acción propia + info del box */}
       {!loading && isActive && (
         <>
-          {/* Check-in: QR flow coming in the next mobile sprint. */}
-          {inGym ? (
+          {checkInStatus === 'checked_in' ? (
+            <Animated.View style={{ opacity: insideOpacity, transform: [{ translateY: insideShift }] }}>
+              <View style={styles.statusRow}>
+                <View style={styles.liveRow}>
+                  <View style={styles.liveDot} />
+                  <View>
+                    <Text style={styles.statusTitle}>CHECK-IN CONFIRMADO</Text>
+                    <Text style={styles.statusSince}>
+                      {checkInClass?.time ? `${checkInClass.time} · ` : ''}
+                      Entrada {formatTime(checkInClass?.myCheckedInAt || attendance?.since)}
+                    </Text>
+                  </View>
+                </View>
+                {inGym && (
+                  <Pressable onPress={checkOut} disabled={checking} style={styles.checkoutBtn}>
+                    <Ionicons name="exit-outline" size={15} color={colors.textPrimary} />
+                    <Text style={styles.checkoutText}>Salida</Text>
+                  </Pressable>
+                )}
+              </View>
+            </Animated.View>
+          ) : inGym && !checkInClass ? (
             <Animated.View style={{ opacity: insideOpacity, transform: [{ translateY: insideShift }] }}>
               <View style={styles.statusRow}>
                 <View style={styles.liveRow}>
@@ -800,18 +899,53 @@ export default function HomeScreen({ user, onUserUpdate, onGoToClasses }) {
           ) : (
             <Animated.View style={[styles.checkinCard, { transform: [{ scale: heroScale }] }]}>
               <View style={styles.checkinIconWrap}>
-                <Ionicons name="qr-code-outline" size={22} color={colors.accent} />
+                <Ionicons
+                  name={canScanQr ? 'qr-code-outline' : checkInStatus === 'waitlist' ? 'time-outline' : 'calendar-outline'}
+                  size={22}
+                  color={colors.accent}
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.checkinTitle}>Check-in por QR proximamente</Text>
-                <Text style={styles.checkinSub}>Escanea el QR del box para confirmar tu asistencia</Text>
+                <Text style={styles.checkinTitle}>
+                  {canScanQr
+                    ? 'Confirma tu asistencia'
+                    : checkInStatus === 'waitlist'
+                      ? 'Estas en lista de espera'
+                      : checkInStatus === 'cancelled'
+                        ? 'Reserva cancelada'
+                        : 'Reserva una clase'}
+                </Text>
+                <Text style={styles.checkinSub}>
+                  {canScanQr
+                    ? `Escanea el QR del box para ${checkInClass.time} · ${checkInClass.name}`
+                    : checkInStatus === 'waitlist'
+                      ? 'Cuando tengas lugar confirmado podras hacer check-in.'
+                      : checkInStatus === 'cancelled'
+                        ? 'Esta reserva no permite hacer check-in.'
+                        : 'Reserva una clase para hacer check-in.'}
+                </Text>
               </View>
-              <View style={[styles.checkinBtn, styles.checkinBtnDisabled]}>
-                <Text style={[styles.checkinBtnText, styles.checkinBtnTextDisabled]}>QR</Text>
-              </View>
+              {canScanQr ? (
+                <Pressable onPress={() => setScannerOpen(true)} disabled={checking} style={styles.checkinBtn}>
+                  {checking
+                    ? <ActivityIndicator size="small" color="#05230b" />
+                    : <Text style={styles.checkinBtnText}>ESCANEAR QR</Text>}
+                </Pressable>
+              ) : (
+                <View style={[styles.checkinBtn, styles.checkinBtnDisabled]}>
+                  <Text style={[styles.checkinBtnText, styles.checkinBtnTextDisabled]}>QR</Text>
+                </View>
+              )}
             </Animated.View>
           )}
+          {checkinMsg && <Text style={styles.checkinSuccess}>{checkinMsg}</Text>}
           {checkinError && <Text style={styles.checkinError}>{checkinError}</Text>}
+
+          <QrCheckInScanner
+            visible={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onSubmit={submitQrCheckIn}
+          />
 
           <Pressable style={styles.goToClasses} onPress={onGoToClasses}>
             <Ionicons name="calendar-outline" size={18} color={colors.accent} />
@@ -1313,6 +1447,33 @@ const styles = StyleSheet.create({
   announceLabel: { color: colors.accent, fontSize: 11, letterSpacing: 2, fontWeight: '800', marginBottom: 4 },
   announceText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
 
+  membershipBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: 'rgba(242,192,55,0.09)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,192,55,0.38)',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md
+  },
+  membershipBannerExpired: {
+    backgroundColor: 'rgba(255,75,75,0.08)',
+    borderColor: 'rgba(255,75,75,0.38)'
+  },
+  membershipBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  membershipBannerTitle: { color: '#F2C037', fontSize: 14, fontWeight: '800' },
+  membershipBannerTitleExpired: { color: colors.danger },
+  membershipBannerText: { color: colors.textPrimary, fontSize: 12, lineHeight: 18, marginTop: 3 },
+
   pendingCard: {
     backgroundColor: 'rgba(242,192,55,0.1)',
     borderWidth: 1,
@@ -1359,14 +1520,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 11,
     paddingHorizontal: 18,
-    minWidth: 92,
+    minWidth: 116,
     alignItems: 'center',
     shadowColor: colors.accent,
     shadowOpacity: 0.5,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 }
   },
-  checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 17, letterSpacing: 1.5 },
+  checkinBtnText: { color: '#05230b', fontFamily: type.display, fontSize: 14, letterSpacing: 0.8 },
   checkinBtnDisabled: {
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
@@ -1594,6 +1755,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   checkoutText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
+  checkinSuccess: { color: colors.accent, fontSize: 13, marginBottom: spacing.sm, textAlign: 'center', fontWeight: '700' },
   checkinError: { color: colors.danger, fontSize: 13, marginBottom: spacing.lg, textAlign: 'center' },
 
   /* Celebración de hito de racha */

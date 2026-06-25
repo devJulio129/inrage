@@ -2,7 +2,7 @@
   "expo": {
     "name": "InRage CrossFit",
     "slug": "inrage",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "scheme": "inrage",
     "icon": "./assets/icon.png",
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.devjulio129.inrage",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#050605"
@@ -56,6 +56,14 @@
           "photoLibraryUsageDescription": "Selecciona tu foto de perfil",
           "microphonePermission": false,
           "cameraPermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "InRage usa la camara para escanear el QR de check-in del box.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-font"

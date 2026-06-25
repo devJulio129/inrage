@@ -6,6 +6,7 @@ import { Member } from '../models/Member.js';
 import { LoginLog } from '../models/LoginLog.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { verifyAppleToken } from '../services/appleAuth.js';
+import { serializeMembership } from '../services/memberships.js';
 
 const router = Router();
 
@@ -233,7 +234,9 @@ router.post('/apple', async (req, res, next) => {
 
 // GET /api/auth/me
 router.get('/me', protect, (req, res) => {
-  res.json(req.user);
+  const user = req.user.toObject ? req.user.toObject() : req.user;
+  delete user.pushTokens;
+  res.json({ ...user, membership: serializeMembership(req.user) });
 });
 
 // PATCH /api/auth/avatar  — guarda el avatar (data-URI base64) del usuario.

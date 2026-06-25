@@ -5,7 +5,7 @@ import { gymTodayStr, effectiveStreak } from '../services/gymTime.js';
 
 export async function listMembers(req, res, next) {
   try {
-    const members = await Member.find().select('-password -avatar').lean();
+    const members = await Member.find().select('-password -avatar -pushTokens').lean();
 
     // Attach each member's most recent login so the admin UI can show a
     // traffic-light status (active / idle / never logged in).
@@ -37,7 +37,7 @@ export async function getMember(req, res, next) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const member = await Member.findById(req.params.id).select('-password');
+    const member = await Member.findById(req.params.id).select('-password -pushTokens');
     if (!member) return res.status(404).json({ error: 'Member not found' });
 
     res.json(member);
@@ -80,6 +80,8 @@ export async function updateMember(req, res, next) {
       delete req.body.streak;
       delete req.body.streakDay;
       delete req.body.longestStreak;
+      delete req.body.membership;
+      delete req.body.pushTokens;
     }
 
     // If password is being updated, hash it
@@ -91,7 +93,7 @@ export async function updateMember(req, res, next) {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select('-password -pushTokens');
 
     if (!member) return res.status(404).json({ error: 'Member not found' });
 

@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import HomeScreen, { WodScreen, ClassesScreen } from './HomeScreen';
 import ProfileScreen from './ProfileScreen';
 import MessagesScreen from './MessagesScreen';
+import NotificationsScreen from './NotificationsScreen';
 
 const TABS = [
   { key: 'home', label: 'Inicio', icon: 'home-outline', iconActive: 'home' },
@@ -121,7 +122,14 @@ function CompleteProfile({ user, onDone, onSkip }) {
 }
 
 // ── Ajustes ─────────────────────────────────────────────────────────
-function SettingsScreen({ user, onLogout, onOpenMessages, unread }) {
+function SettingsScreen({
+  user,
+  onLogout,
+  onOpenMessages,
+  messageUnread,
+  onOpenNotifications,
+  notificationUnread
+}) {
   const initials = (user?.name || 'A').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
   const version = Constants.expoConfig?.version || '1.0.0';
   const isActive = user?.role === 'admin' || user?.status !== 'pending';
@@ -160,13 +168,22 @@ function SettingsScreen({ user, onLogout, onOpenMessages, unread }) {
 
       <Text style={st.sectionLabel}>GIMNASIO</Text>
       <View style={st.group}>
+        <Pressable style={st.row} onPress={onOpenNotifications}>
+          <Ionicons name="notifications-outline" size={18} color={colors.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={st.rowTitle}>Notificaciones</Text>
+            <Text style={st.rowSub}>Membresia y avisos importantes</Text>
+          </View>
+          {notificationUnread > 0 && <View style={st.unreadDot}><Text style={st.unreadText}>{notificationUnread}</Text></View>}
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
         <Pressable style={[st.row, st.rowLast]} onPress={onOpenMessages}>
           <Ionicons name="chatbubbles-outline" size={18} color={colors.accent} />
           <View style={{ flex: 1 }}>
             <Text style={st.rowTitle}>Mensajes del gimnasio</Text>
             <Text style={st.rowSub}>Habla directo con el coach</Text>
           </View>
-          {unread > 0 && <View style={st.unreadDot}><Text style={st.unreadText}>{unread}</Text></View>}
+          {messageUnread > 0 && <View style={st.unreadDot}><Text style={st.unreadText}>{messageUnread}</Text></View>}
           <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
         </Pressable>
       </View>
@@ -210,6 +227,7 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
   const [tab, setTab] = useState('home');
   const [skippedProfile, setSkippedProfile] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [notificationUnread, setNotificationUnread] = useState(0);
 
   // El login responde sin phone: se refresca el perfil completo UNA vez para
   // saber si de verdad faltan datos (solo pasa con cuentas de Google nuevas).
@@ -225,6 +243,7 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
   // Mensajes sin leer del gimnasio (badge). Se refresca al volver a Ajustes.
   function refreshUnread() {
     api.myUnreadCount().then((r) => setUnread(r.count || 0)).catch(() => {});
+    api.getNotifications().then((r) => setNotificationUnread(r.unread || 0)).catch(() => {});
   }
   useEffect(() => { refreshUnread(); }, []);
   useEffect(() => { if (tab === 'settings') refreshUnread(); }, [tab]);
@@ -247,18 +266,31 @@ export default function MainApp({ user, onUserUpdate, onLogout }) {
         {tab === 'wod' && <WodScreen user={user} onGoToClasses={() => setTab('classes')} />}
         {tab === 'profile' && <ProfileScreen user={user} onUserUpdate={onUserUpdate} />}
         {tab === 'settings' && (
-          <SettingsScreen user={user} onLogout={onLogout} unread={unread} onOpenMessages={() => setTab('messages')} />
+          <SettingsScreen
+            user={user}
+            onLogout={onLogout}
+            messageUnread={unread}
+            notificationUnread={notificationUnread}
+            onOpenMessages={() => setTab('messages')}
+            onOpenNotifications={() => setTab('notifications')}
+          />
         )}
         {tab === 'messages' && (
           <MessagesScreen user={user} onBack={() => setTab('settings')} onReadAll={() => setUnread(0)} />
         )}
+        {tab === 'notifications' && (
+          <NotificationsScreen
+            onBack={() => setTab('settings')}
+            onUnreadChange={setNotificationUnread}
+          />
+        )}
       </View>
 
-      {tab !== 'messages' && (
+      {tab !== 'messages' && tab !== 'notifications' && (
       <View style={styles.tabbar}>
         {TABS.map((t) => {
-          const active = tab === t.key || (t.key === 'settings' && tab === 'messages');
-          const showBadge = t.key === 'settings' && unread > 0;
+          const active = tab === t.key || (t.key === 'settings' && (tab === 'messages' || tab === 'notifications'));
+          const showBadge = t.key === 'settings' && (unread > 0 || notificationUnread > 0);
           return (
             <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
               <View style={[styles.tabPill, active && styles.tabPillActive]}>

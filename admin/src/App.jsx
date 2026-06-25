@@ -3,6 +3,8 @@ import { api } from './api';
 import MessagesPanel from './MessagesPanel';
 import ScheduleEditor from './ScheduleEditor';
 import CheckInPanel from './CheckInPanel';
+import BusinessPanel from './BusinessPanel';
+import MembershipsPanel from './MembershipsPanel';
 
 const EMPTY_FORM = {
   name: '', email: '', password: '', phone: '', birthDate: '', gender: '', role: 'athlete', joinedAt: '',
@@ -179,6 +181,8 @@ const ICON_PATHS = {
   users: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
   clipboard: <><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></>,
   qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3" /><path d="M21 14v7h-7" /><path d="M17 17h4" /></>,
+  briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /><path d="M10 12v2h4v-2" /></>,
+  creditCard: <><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><line x1="6" y1="15" x2="10" y2="15" /></>,
   home: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
   clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
@@ -202,6 +206,8 @@ function Icon({ name }) {
 const NAV_ITEMS = [
   { id: 'gym', label: 'En el gym', icon: 'activity' },
   { id: 'checkin', label: 'Check-in', icon: 'qr' },
+  { id: 'business', label: 'Negocio', icon: 'briefcase' },
+  { id: 'memberships', label: 'Membresias', icon: 'creditCard' },
   { id: 'stats', label: 'Estadísticas', icon: 'chart' },
   { id: 'athletes', label: 'Atletas', icon: 'users' },
   { id: 'wod', label: 'WOD del día', icon: 'clipboard' },
@@ -790,6 +796,8 @@ export default function App() {
 
       {/* ── STATS TAB ── */}
       {tab === 'checkin' && <CheckInPanel />}
+      {tab === 'business' && <BusinessPanel onOpenMemberships={() => setTab('memberships')} />}
+      {tab === 'memberships' && <MembershipsPanel />}
 
       {tab === 'stats' && (
         <section>

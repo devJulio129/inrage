@@ -66,7 +66,19 @@ describe('protected routes', () => {
     ['GET', '/api/messages/me'],
     ['GET', '/api/messages/me/unread'],
     ['POST', '/api/messages/me'],
-    ['GET', '/api/messages/inbox']
+    ['GET', '/api/messages/inbox'],
+    ['GET', '/api/admin/business/overview'],
+    ['GET', '/api/admin/business/athletes-risk'],
+    ['GET', '/api/admin/business/class-performance'],
+    ['GET', '/api/admin/memberships/overview'],
+    ['GET', '/api/admin/memberships'],
+    ['PATCH', '/api/admin/memberships/000000000000000000000000'],
+    ['POST', '/api/admin/memberships/000000000000000000000000/mark-paid'],
+    ['POST', '/api/admin/memberships/000000000000000000000000/send-reminder'],
+    ['POST', '/api/admin/memberships/run-reminders'],
+    ['GET', '/api/notifications'],
+    ['PATCH', '/api/notifications/000000000000000000000000/read'],
+    ['POST', '/api/notifications/push-token']
   ];
 
   for (const [method, route] of protectedRoutes) {

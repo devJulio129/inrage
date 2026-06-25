@@ -158,6 +158,11 @@ export const api = {
   reserveClass: (id) => request(`/api/classes/${id}/reserve`, { method: 'POST' }),
   cancelClassReservation: (id) =>
     request(`/api/classes/${id}/reserve`, { method: 'DELETE' }),
+  checkInWithQr: (token) =>
+    request('/api/classes/check-in/qr', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    }),
 
   // Publicaciones del gimnasio
   getPosts: () => request('/api/posts'),
@@ -181,6 +186,16 @@ export const api = {
   myUnreadCount: () => request('/api/messages/me/unread'),
   sendMyMessage: (data) =>
     request('/api/messages/me', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Notificaciones internas
+  getNotifications: () => request('/api/notifications'),
+  markNotificationRead: (id) =>
+    request(`/api/notifications/${id}/read`, { method: 'PATCH' }),
+  savePushToken: (data) =>
+    request('/api/notifications/push-token', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
 
   // Gym presence
   myAttendance: () => request('/api/attendances/me'),

@@ -1,5 +1,36 @@
 import mongoose from "mongoose";
 
+const membershipSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["active", "expiring_soon", "expired", "frozen", "inactive"],
+      default: "inactive",
+    },
+    planName: { type: String, trim: true, maxlength: 100 },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    lastPaymentAt: { type: Date },
+    nextPaymentDueAt: { type: Date },
+    notes: { type: String, trim: true, maxlength: 1000 },
+    reminder7DaysSentAt: { type: Date },
+    reminder1DaySentAt: { type: Date },
+    expiredReminderSentAt: { type: Date },
+  },
+  { _id: false },
+);
+
+const pushTokenSchema = new mongoose.Schema(
+  {
+    token: { type: String, required: true, trim: true },
+    platform: { type: String, trim: true },
+    deviceId: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now },
+    lastUsedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const memberSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -39,6 +70,8 @@ const memberSchema = new mongoose.Schema(
     streakDay: { type: String, default: null }, // 'YYYY-MM-DD' del último día contado
     longestStreak: { type: Number, default: 0, min: 0 },
     avatar: { type: String, default: null },
+    membership: { type: membershipSchema, default: undefined },
+    pushTokens: { type: [pushTokenSchema], default: [] },
   },
   { timestamps: true },
 );
