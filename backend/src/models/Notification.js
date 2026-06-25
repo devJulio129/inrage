@@ -22,11 +22,16 @@ const notificationSchema = new mongoose.Schema(
     status: { type: String, enum: ['unread', 'read'], default: 'unread', index: true },
     sentAt: { type: Date, default: Date.now },
     readAt: { type: Date },
+    reminderKey: { type: String, trim: true },
     metadata: { type: mongoose.Schema.Types.Mixed, default: {} }
   },
   { timestamps: true }
 );
 
 notificationSchema.index({ member: 1, createdAt: -1 });
+notificationSchema.index(
+  { reminderKey: 1 },
+  { unique: true, sparse: true }
+);
 
 export const Notification = mongoose.model('Notification', notificationSchema);

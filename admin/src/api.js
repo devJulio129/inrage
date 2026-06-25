@@ -14,7 +14,7 @@ async function request(path, options = {}) {
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
+        throw new Error(body.error || body.message || `HTTP ${res.status}`);
     }
     return res.json();
 }

@@ -14,7 +14,9 @@ function formatPercent(value) {
 
 function formatDate(value) {
   if (!value) return '-';
-  return new Date(value).toLocaleDateString('es-MX', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('es-MX', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -141,77 +143,89 @@ export default function BusinessPanel({ onOpenMemberships }) {
         </>
       )}
 
-      <h3 className="business-section-title">Atletas que necesitan seguimiento</h3>
-      <div className="card table-shell">
-        {visibleRisk.length === 0 ? (
-          <p className="muted table-empty">No hay atletas en riesgo medio o alto.</p>
-        ) : (
-          <div className="business-table-scroll">
-            <table className="business-table">
-              <thead>
-                <tr>
-                  <th>Atleta</th>
-                  <th>Ultima visita</th>
-                  <th>Dias sin venir</th>
-                  <th>Visitas 30d</th>
-                  <th>Membresia</th>
-                  <th>Riesgo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRisk.map((athlete) => (
-                  <tr key={athlete.id}>
-                    <td><strong>{athlete.name}</strong><small>{athlete.email}</small></td>
-                    <td>{formatDate(athlete.lastVisitAt)}</td>
-                    <td>{athlete.daysSinceLastVisit ?? 'Sin datos'}</td>
-                    <td>{athlete.visitsLast30Days}</td>
-                    <td><span className={`status-chip ${athlete.membershipStatus}`}>{athlete.membershipStatus}</span></td>
-                    <td><span className={`risk-chip ${athlete.riskLevel}`}>{riskLabels[athlete.riskLevel]}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {(!error || athletes.length > 0) && (
+        <>
+          <h3 className="business-section-title">Atletas que necesitan seguimiento</h3>
+          <div className="card table-shell">
+            {loading && athletes.length === 0 ? (
+              <p className="muted table-empty">Cargando atletas...</p>
+            ) : visibleRisk.length === 0 ? (
+              <p className="muted table-empty">No hay atletas en riesgo medio o alto.</p>
+            ) : (
+              <div className="business-table-scroll">
+                <table className="business-table">
+                  <thead>
+                    <tr>
+                      <th>Atleta</th>
+                      <th>Ultima visita</th>
+                      <th>Dias sin venir</th>
+                      <th>Visitas 30d</th>
+                      <th>Membresia</th>
+                      <th>Riesgo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleRisk.map((athlete) => (
+                      <tr key={athlete.id}>
+                        <td><strong>{athlete.name || 'Atleta sin nombre'}</strong><small>{athlete.email || 'Sin email'}</small></td>
+                        <td>{formatDate(athlete.lastVisitAt)}</td>
+                        <td>{athlete.daysSinceLastVisit ?? 'Sin datos'}</td>
+                        <td>{athlete.visitsLast30Days}</td>
+                        <td><span className={`status-chip ${athlete.membershipStatus || 'inactive'}`}>{athlete.membershipStatus || 'inactive'}</span></td>
+                        <td><span className={`risk-chip ${athlete.riskLevel || 'unknown'}`}>{riskLabels[athlete.riskLevel] || 'Sin datos'}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      <h3 className="business-section-title">Rendimiento por horario, ultimos 30 dias</h3>
-      <div className="card table-shell">
-        {performance.length === 0 ? (
-          <p className="muted table-empty">Todavia no hay sesiones suficientes para comparar.</p>
-        ) : (
-          <div className="business-table-scroll">
-            <table className="business-table">
-              <thead>
-                <tr>
-                  <th>Clase</th>
-                  <th>Hora</th>
-                  <th>Sesiones</th>
-                  <th>Prom. reservados</th>
-                  <th>Prom. presentes</th>
-                  <th>Ocupacion</th>
-                  <th>Cancelaciones</th>
-                  <th>Waitlist</th>
-                </tr>
-              </thead>
-              <tbody>
-                {performance.map((row) => (
-                  <tr key={`${row.className}-${row.time}`}>
-                    <td><strong>{row.className}</strong></td>
-                    <td>{row.time}</td>
-                    <td>{row.sessionsCount}</td>
-                    <td>{row.avgReserved}</td>
-                    <td>{row.avgCheckedIn}</td>
-                    <td>{formatPercent(row.avgOccupancyRate)}</td>
-                    <td>{row.cancellations}</td>
-                    <td>{row.waitlistCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {(!error || performance.length > 0) && (
+        <>
+          <h3 className="business-section-title">Rendimiento por horario, ultimos 30 dias</h3>
+          <div className="card table-shell">
+            {loading && performance.length === 0 ? (
+              <p className="muted table-empty">Cargando rendimiento...</p>
+            ) : performance.length === 0 ? (
+              <p className="muted table-empty">Todavia no hay sesiones suficientes para comparar.</p>
+            ) : (
+              <div className="business-table-scroll">
+                <table className="business-table">
+                  <thead>
+                    <tr>
+                      <th>Clase</th>
+                      <th>Hora</th>
+                      <th>Sesiones</th>
+                      <th>Prom. reservados</th>
+                      <th>Prom. presentes</th>
+                      <th>Ocupacion</th>
+                      <th>Cancelaciones</th>
+                      <th>Waitlist</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {performance.map((row) => (
+                      <tr key={`${row.className}-${row.time}`}>
+                        <td><strong>{row.className}</strong></td>
+                        <td>{row.time}</td>
+                        <td>{row.sessionsCount}</td>
+                        <td>{row.avgReserved}</td>
+                        <td>{row.avgCheckedIn}</td>
+                        <td>{formatPercent(row.avgOccupancyRate)}</td>
+                        <td>{row.cancellations}</td>
+                        <td>{row.waitlistCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </section>
   );
 }

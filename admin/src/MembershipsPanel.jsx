@@ -18,12 +18,16 @@ const STATUS_OPTIONS = [
 ];
 
 function inputDate(value) {
-  return value ? new Date(value).toISOString().slice(0, 10) : '';
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
 }
 
 function formatDate(value) {
   if (!value) return '-';
-  return new Date(value).toLocaleDateString('es-MX', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('es-MX', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -204,6 +208,8 @@ export default function MembershipsPanel() {
       <div className="card table-shell">
         {loading && members.length === 0 ? (
           <p className="muted table-empty">Cargando membresias...</p>
+        ) : error && members.length === 0 ? (
+          <p className="muted table-empty">No se pudo cargar la lista de membresias.</p>
         ) : members.length === 0 ? (
           <p className="muted table-empty">No hay atletas para este filtro.</p>
         ) : (
@@ -224,8 +230,8 @@ export default function MembershipsPanel() {
                 {members.map((member) => (
                   <tr key={member.id}>
                     <td>
-                      <strong>{member.name}</strong>
-                      <small>{member.email}</small>
+                      <strong>{member.name || 'Atleta sin nombre'}</strong>
+                      <small>{member.email || 'Sin email'}</small>
                       {member.phone && <small>{member.phone}</small>}
                     </td>
                     <td>{member.planName || '-'}</td>
@@ -233,7 +239,7 @@ export default function MembershipsPanel() {
                     <td className={member.daysLeft != null && member.daysLeft < 0 ? 'danger-text' : ''}>
                       {member.daysLeft == null ? '-' : member.daysLeft}
                     </td>
-                    <td><span className={`status-chip ${member.membershipStatus}`}>{member.membershipStatus}</span></td>
+                    <td><span className={`status-chip ${member.membershipStatus || 'inactive'}`}>{member.membershipStatus || 'inactive'}</span></td>
                     <td>{formatDate(member.lastPaymentAt)}</td>
                     <td>
                       <div className="membership-actions">

@@ -100,7 +100,7 @@ export default function NotificationsScreen({ onBack, onUnreadChange }) {
         {loading && <ActivityIndicator color={colors.accent} style={styles.loader} />}
         {error && <Text style={styles.error}>{error}</Text>}
 
-        {!loading && items.length === 0 && (
+        {!loading && !error && items.length === 0 && (
           <View style={styles.empty}>
             <Ionicons name="notifications-off-outline" size={28} color={colors.textMuted} />
             <Text style={styles.emptyTitle}>Sin notificaciones</Text>
@@ -126,10 +126,12 @@ export default function NotificationsScreen({ onBack, onUnreadChange }) {
               </View>
               <View style={styles.body}>
                 <View style={styles.itemHead}>
-                  <Text style={[styles.itemTitle, unread && styles.itemTitleUnread]}>{item.title}</Text>
+                  <Text style={[styles.itemTitle, unread && styles.itemTitleUnread]}>
+                    {item.title || 'Notificacion del gimnasio'}
+                  </Text>
                   {unread && <View style={styles.unreadDot} />}
                 </View>
-                <Text style={styles.itemText}>{item.body}</Text>
+                <Text style={styles.itemText}>{item.body || 'Abre la app para revisar este aviso.'}</Text>
                 <Text style={styles.itemDate}>{formatNotificationDate(item.sentAt || item.createdAt)}</Text>
               </View>
             </Pressable>

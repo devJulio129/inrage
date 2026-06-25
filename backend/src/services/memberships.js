@@ -1,6 +1,6 @@
 import { Member } from '../models/Member.js';
 import { Notification } from '../models/Notification.js';
-import { gymTodayStr } from './gymTime.js';
+import { gymDayStr, gymTodayStr } from './gymTime.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MANUAL_STATUSES = new Set(['frozen', 'inactive']);
@@ -152,15 +152,43 @@ function reminderCopy(type, member) {
 
 async function createAutomaticReminder(member, type, flag, now) {
   const copy = reminderCopy(type, member);
-  await Notification.create({
+  const membershipEndDate = member.membership?.endDate || null;
+  const reminderKey = [
+    String(member._id),
+    type,
+    dateKey(membershipEndDate) || 'no-end-date'
+  ].join(':');
+  const existing = await Notification.findOne({
     member: member._id,
     type,
-    ...copy,
-    sentAt: now,
-    metadata: { membershipEndDate: member.membership?.endDate || null }
+    $or: [
+      { reminderKey },
+      { 'metadata.membershipEndDate': membershipEndDate }
+    ]
   });
-  member.membership[flag] = now;
-  await member.save();
+
+  let created = false;
+  if (!existing) {
+    try {
+      await Notification.create({
+        member: member._id,
+        type,
+        reminderKey,
+        ...copy,
+        sentAt: now,
+        metadata: { membershipEndDate }
+      });
+      created = true;
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+    }
+  }
+
+  if (!member.membership[flag]) {
+    member.membership[flag] = now;
+    await member.save();
+  }
+  return created;
 }
 
 export async function runMembershipReminders(now = new Date()) {
@@ -169,27 +197,32 @@ export async function runMembershipReminders(now = new Date()) {
     'membership.endDate': { $exists: true, $ne: null }
   });
   const summary = { scanned: members.length, created: 0, byType: {} };
+  const today = gymDayStr(now);
 
   for (const member of members) {
-    const { status, daysLeft } = resolveMembershipStatus(member.membership, gymTodayStr());
+    const { status, daysLeft } = resolveMembershipStatus(member.membership, today);
     let type = null;
     let flag = null;
 
     if (status === 'expired' && !member.membership.expiredReminderSentAt) {
       type = 'membership_expired';
       flag = 'expiredReminderSentAt';
-    } else if (status === 'expiring_soon' && daysLeft <= 1 && !member.membership.reminder1DaySentAt) {
-      type = 'membership_expiring_1_day';
-      flag = 'reminder1DaySentAt';
+    } else if (status === 'expiring_soon' && daysLeft === 1) {
+      if (!member.membership.reminder1DaySentAt) {
+        type = 'membership_expiring_1_day';
+        flag = 'reminder1DaySentAt';
+      }
     } else if (status === 'expiring_soon' && !member.membership.reminder7DaysSentAt) {
       type = 'membership_expiring_7_days';
       flag = 'reminder7DaysSentAt';
     }
 
     if (!type) continue;
-    await createAutomaticReminder(member, type, flag, now);
-    summary.created += 1;
-    summary.byType[type] = (summary.byType[type] || 0) + 1;
+    const created = await createAutomaticReminder(member, type, flag, now);
+    if (created) {
+      summary.created += 1;
+      summary.byType[type] = (summary.byType[type] || 0) + 1;
+    }
   }
 
   return summary;

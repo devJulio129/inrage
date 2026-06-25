@@ -25,6 +25,12 @@ function parseDate(value, label) {
   return date;
 }
 
+function dateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function matchesStatus(row, status) {
   if (!status || status === 'all') return true;
   if (status === 'expiring_soon') return row.membershipStatus === 'expiring_soon';
@@ -75,6 +81,7 @@ router.patch('/:memberId', async (req, res, next) => {
     if (!member) return res.status(404).json({ error: 'Miembro no encontrado' });
 
     if (!member.membership) member.membership = {};
+    const previousEndDate = dateValue(member.membership.endDate);
     for (const field of EDITABLE_FIELDS) {
       if (!(field in req.body)) continue;
       if (field === 'status') {
@@ -87,6 +94,11 @@ router.patch('/:memberId', async (req, res, next) => {
       } else {
         member.membership[field] = String(req.body[field] || '').trim();
       }
+    }
+    if (previousEndDate !== dateValue(member.membership.endDate)) {
+      member.membership.reminder7DaysSentAt = undefined;
+      member.membership.reminder1DaySentAt = undefined;
+      member.membership.expiredReminderSentAt = undefined;
     }
 
     await member.save();
