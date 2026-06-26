@@ -14,7 +14,9 @@ async function request(path, options = {}) {
     });
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || body.message || `HTTP ${res.status}`);
+        const err = new Error(body.error || body.message || `HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
     }
     return res.json();
 }
@@ -112,6 +114,16 @@ export const api = {
         }),
     runMembershipReminders: () =>
         request('/api/admin/memberships/run-reminders', { method: 'POST' }),
+
+    // Perfiles publicos
+    getPublicProfiles: () => request('/api/admin/public-profiles'),
+    updatePublicProfileAdmin: (memberId, data) =>
+        request(`/api/admin/public-profiles/${memberId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
+    getPublicAthlete: (slug) =>
+        request(`/api/public/athletes/${encodeURIComponent(slug)}`),
 
     // Horario semanal (franjas recurrentes que se materializan en clases)
     listClassTemplates: () => request('/api/class-templates'),

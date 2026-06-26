@@ -21,6 +21,7 @@ import messageRoutes from './routes/messages.js';
 import businessRoutes from './routes/business.js';
 import membershipRoutes from './routes/memberships.js';
 import notificationRoutes from './routes/notifications.js';
+import publicProfileRoutes from './routes/publicProfiles.js';
 
 // Builds the Express app without connecting to the database or listening on a
 // port, so tests can mount it on an ephemeral port. index.js does the rest.
@@ -75,6 +76,7 @@ export function createApp() {
   app.use('/api/admin/business', businessRoutes);
   app.use('/api/admin/memberships', membershipRoutes);
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api', publicProfileRoutes);
   app.use(notFound);
   app.use(errorHandler);
 

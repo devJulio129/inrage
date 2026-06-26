@@ -31,6 +31,23 @@ const pushTokenSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const publicProfileSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: false },
+    slug: { type: String, trim: true, lowercase: true },
+    bio: { type: String, trim: true, maxlength: 300, default: "" },
+    avatarUrl: { type: String, trim: true, default: "" },
+    coverUrl: { type: String, trim: true, default: "" },
+    showAttendanceStats: { type: Boolean, default: true },
+    showPrs: { type: Boolean, default: true },
+    showBadges: { type: Boolean, default: true },
+    featuredPrs: { type: [String], default: [] },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const memberSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -71,9 +88,15 @@ const memberSchema = new mongoose.Schema(
     longestStreak: { type: Number, default: 0, min: 0 },
     avatar: { type: String, default: null },
     membership: { type: membershipSchema, default: undefined },
+    publicProfile: { type: publicProfileSchema, default: undefined },
     pushTokens: { type: [pushTokenSchema], default: [] },
   },
   { timestamps: true },
+);
+
+memberSchema.index(
+  { "publicProfile.slug": 1 },
+  { unique: true, sparse: true },
 );
 
 export const Member = mongoose.model("Member", memberSchema);

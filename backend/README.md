@@ -4,15 +4,26 @@ Express + MongoDB API.
 
 ## Setup
 
-```bash
+```powershell
 npm install
-cp .env.example .env
-# edit .env and set MONGODB_URI
-npm run seed   # optional: creates sample data
-npm run dev
+Copy-Item .env.example .env
+# Edita .env y configura MONGODB_URI
+npm.cmd run seed   # opcional: crea datos de ejemplo
+npm.cmd run dev
 ```
 
 Server runs on `http://localhost:4010`.
+
+## Sprint 4 staging smoke test
+
+Run the read-only MongoDB preflight:
+
+```powershell
+npm.cmd run smoke:sprint4
+```
+
+The write-enabled staging procedure and safety guards are documented in
+[`docs/sprint4-smoke-test.md`](../docs/sprint4-smoke-test.md).
 
 ## Endpoints
 
@@ -25,9 +36,9 @@ Server runs on `http://localhost:4010`.
 
 ## Models
 
-- `Member` — name, email, joinedAt
-- `WorkoutClass` — title, startsAt, capacity, coach
-- `Workout` — date, title, description
+- `Member` - name, email, joinedAt
+- `WorkoutClass` - title, startsAt, capacity, coach
+- `Workout` - date, title, description
 
 ## What's next
 

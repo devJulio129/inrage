@@ -5,6 +5,8 @@ import ScheduleEditor from './ScheduleEditor';
 import CheckInPanel from './CheckInPanel';
 import BusinessPanel from './BusinessPanel';
 import MembershipsPanel from './MembershipsPanel';
+import PublicProfilesPanel from './PublicProfilesPanel';
+import PublicAthletePage from './PublicAthletePage';
 
 const EMPTY_FORM = {
   name: '', email: '', password: '', phone: '', birthDate: '', gender: '', role: 'athlete', joinedAt: '',
@@ -188,6 +190,7 @@ const ICON_PATHS = {
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
   megaphone: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
   mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></>,
+  idCard: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M6 16a3 3 0 0 1 6 0" /><line x1="14" y1="9" x2="18" y2="9" /><line x1="14" y1="13" x2="18" y2="13" /></>,
   logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
 };
 
@@ -208,6 +211,7 @@ const NAV_ITEMS = [
   { id: 'checkin', label: 'Check-in', icon: 'qr' },
   { id: 'business', label: 'Negocio', icon: 'briefcase' },
   { id: 'memberships', label: 'Membresias', icon: 'creditCard' },
+  { id: 'publicProfiles', label: 'Perfiles', icon: 'idCard' },
   { id: 'stats', label: 'Estadísticas', icon: 'chart' },
   { id: 'athletes', label: 'Atletas', icon: 'users' },
   { id: 'wod', label: 'WOD del día', icon: 'clipboard' },
@@ -245,7 +249,7 @@ function eventBadge(event) {
   return <span className="pill pill-green">login ✓</span>;
 }
 
-export default function App() {
+function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [tab, setTab] = useState('athletes');
   const [msgMemberId, setMsgMemberId] = useState(null);
@@ -798,6 +802,7 @@ export default function App() {
       {tab === 'checkin' && <CheckInPanel />}
       {tab === 'business' && <BusinessPanel onOpenMemberships={() => setTab('memberships')} />}
       {tab === 'memberships' && <MembershipsPanel />}
+      {tab === 'publicProfiles' && <PublicProfilesPanel />}
 
       {tab === 'stats' && (
         <section>
@@ -1345,6 +1350,12 @@ export default function App() {
 }
 
 // ── Stats view ──────────────────────────────────────────────────────
+export default function App() {
+  const match = window.location.pathname.match(/^\/athlete\/([^/]+)\/?$/);
+  if (match) return <PublicAthletePage slug={decodeURIComponent(match[1])} />;
+  return <AdminApp />;
+}
+
 function StatsView({ stats }) {
   const { totals, trafficLight, gender, loginsByDay, newByMonth } = stats;
 

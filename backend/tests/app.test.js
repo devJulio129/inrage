@@ -76,6 +76,10 @@ describe('protected routes', () => {
     ['POST', '/api/admin/memberships/000000000000000000000000/mark-paid'],
     ['POST', '/api/admin/memberships/000000000000000000000000/send-reminder'],
     ['POST', '/api/admin/memberships/run-reminders'],
+    ['GET', '/api/me/public-profile'],
+    ['PATCH', '/api/me/public-profile'],
+    ['GET', '/api/admin/public-profiles'],
+    ['PATCH', '/api/admin/public-profiles/000000000000000000000000'],
     ['GET', '/api/notifications'],
     ['PATCH', '/api/notifications/000000000000000000000000/read'],
     ['POST', '/api/notifications/push-token']

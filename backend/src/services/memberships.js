@@ -191,11 +191,16 @@ async function createAutomaticReminder(member, type, flag, now) {
   return created;
 }
 
-export async function runMembershipReminders(now = new Date()) {
-  const members = await Member.find({
+export async function runMembershipReminders(now = new Date(), { memberIds } = {}) {
+  const memberFilter = {
     role: { $ne: 'admin' },
     'membership.endDate': { $exists: true, $ne: null }
-  });
+  };
+  if (Array.isArray(memberIds)) {
+    memberFilter._id = { $in: memberIds };
+  }
+
+  const members = await Member.find(memberFilter);
   const summary = { scanned: members.length, created: 0, byType: {} };
   const today = gymDayStr(now);
 

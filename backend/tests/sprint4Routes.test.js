@@ -69,6 +69,15 @@ async function request(path, { token = adminToken, method = 'GET', body } = {}) 
   return { response, payload };
 }
 
+function mockPaymentNotification(t) {
+  let createdNotification;
+  t.mock.method(Notification, 'create', async (data) => {
+    createdNotification = data;
+    return { _id: 'notification-paid', ...data };
+  });
+  return () => createdNotification;
+}
+
 describe('admin memberships routes', () => {
   test('GET /api/admin/memberships/overview includes legacy members as inactive', async (t) => {
     mockAuth(t);
@@ -136,6 +145,133 @@ describe('admin memberships routes', () => {
     assert.equal(member.membership.endDate.toISOString(), '2026-07-25T00:00:00.000Z');
     assert.equal(createdNotification.type, 'payment_confirmed');
     assert.equal(payload.member.planName, 'Mensualidad');
+  });
+
+  test('POST /api/admin/memberships/:memberId/mark-paid extends active membership from endDate', async (t) => {
+    const member = {
+      _id: ATHLETE_ID,
+      name: 'Ana',
+      email: 'ana@example.com',
+      membership: {
+        status: 'frozen',
+        planName: 'Mensualidad',
+        endDate: new Date('2026-07-15T00:00:00.000Z'),
+        reminder7DaysSentAt: new Date('2026-07-08T00:00:00.000Z'),
+        reminder1DaySentAt: new Date('2026-07-14T00:00:00.000Z'),
+        expiredReminderSentAt: new Date('2026-07-16T00:00:00.000Z')
+      },
+      async save() {}
+    };
+    const getNotification = mockPaymentNotification(t);
+    mockAuth(t, admin, { [ATHLETE_ID]: member });
+
+    const { response, payload } = await request(
+      `/api/admin/memberships/${ATHLETE_ID}/mark-paid`,
+      {
+        method: 'POST',
+        body: { months: 2, paidAt: '2026-06-25T00:00:00.000Z' }
+      }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(member.membership.status, 'active');
+    assert.equal(member.membership.endDate.toISOString(), '2026-09-15T00:00:00.000Z');
+    assert.equal(member.membership.lastPaymentAt.toISOString(), '2026-06-25T00:00:00.000Z');
+    assert.equal(member.membership.nextPaymentDueAt.toISOString(), '2026-09-15T00:00:00.000Z');
+    assert.equal(member.membership.reminder7DaysSentAt, undefined);
+    assert.equal(member.membership.reminder1DaySentAt, undefined);
+    assert.equal(member.membership.expiredReminderSentAt, undefined);
+    assert.equal(getNotification().metadata.months, 2);
+    assert.equal(payload.member.membershipEndDate, '2026-09-15T00:00:00.000Z');
+  });
+
+  test('POST /api/admin/memberships/:memberId/mark-paid extends expired membership from paid date', async (t) => {
+    const member = {
+      _id: ATHLETE_ID,
+      name: 'Ana',
+      email: 'ana@example.com',
+      membership: {
+        status: 'expired',
+        endDate: new Date('2026-05-01T00:00:00.000Z')
+      },
+      async save() {}
+    };
+    mockPaymentNotification(t);
+    mockAuth(t, admin, { [ATHLETE_ID]: member });
+
+    const { response } = await request(
+      `/api/admin/memberships/${ATHLETE_ID}/mark-paid`,
+      {
+        method: 'POST',
+        body: { months: 1, paidAt: '2026-06-25T00:00:00.000Z' }
+      }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(member.membership.status, 'active');
+    assert.equal(member.membership.endDate.toISOString(), '2026-07-25T00:00:00.000Z');
+    assert.equal(member.membership.lastPaymentAt.toISOString(), '2026-06-25T00:00:00.000Z');
+  });
+
+  test('POST /api/admin/memberships/:memberId/mark-paid extends missing endDate from paid date', async (t) => {
+    const member = {
+      _id: ATHLETE_ID,
+      name: 'Ana',
+      email: 'ana@example.com',
+      membership: {
+        status: 'inactive',
+        planName: 'Mensualidad'
+      },
+      async save() {}
+    };
+    mockPaymentNotification(t);
+    mockAuth(t, admin, { [ATHLETE_ID]: member });
+
+    const { response } = await request(
+      `/api/admin/memberships/${ATHLETE_ID}/mark-paid`,
+      {
+        method: 'POST',
+        body: { months: 3, paidAt: '2026-06-25T00:00:00.000Z' }
+      }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(member.membership.status, 'active');
+    assert.equal(member.membership.endDate.toISOString(), '2026-09-25T00:00:00.000Z');
+    assert.equal(member.membership.nextPaymentDueAt.toISOString(), '2026-09-25T00:00:00.000Z');
+  });
+
+  test('PATCH /api/admin/memberships/:memberId updates startDate without resetting reminder flags', async (t) => {
+    const reminder7DaysSentAt = new Date('2026-07-08T00:00:00.000Z');
+    const reminder1DaySentAt = new Date('2026-07-14T00:00:00.000Z');
+    const expiredReminderSentAt = new Date('2026-07-16T00:00:00.000Z');
+    const member = {
+      _id: ATHLETE_ID,
+      name: 'Ana',
+      email: 'ana@example.com',
+      membership: {
+        status: 'active',
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        endDate: new Date('2026-07-15T00:00:00.000Z'),
+        reminder7DaysSentAt,
+        reminder1DaySentAt,
+        expiredReminderSentAt
+      },
+      async save() {}
+    };
+    mockAuth(t, admin, { [ATHLETE_ID]: member });
+
+    const { response } = await request(
+      `/api/admin/memberships/${ATHLETE_ID}`,
+      { method: 'PATCH', body: { startDate: '2026-02-10' } }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(member.membership.startDate.toISOString(), '2026-02-10T00:00:00.000Z');
+    assert.equal(member.membership.endDate.toISOString(), '2026-07-15T00:00:00.000Z');
+    assert.equal(member.membership.reminder7DaysSentAt, reminder7DaysSentAt);
+    assert.equal(member.membership.reminder1DaySentAt, reminder1DaySentAt);
+    assert.equal(member.membership.expiredReminderSentAt, expiredReminderSentAt);
   });
 
   test('PATCH /api/admin/memberships/:memberId resets reminder flags when endDate changes', async (t) => {

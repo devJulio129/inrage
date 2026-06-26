@@ -219,10 +219,12 @@ export default function MembershipsPanel() {
                 <tr>
                   <th>Atleta</th>
                   <th>Plan</th>
-                  <th>Vencimiento</th>
+                  <th>Inscripcion</th>
+                  <th>Vence</th>
                   <th>Dias</th>
                   <th>Status</th>
                   <th>Ultimo pago</th>
+                  <th>Prox. pago</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -233,14 +235,17 @@ export default function MembershipsPanel() {
                       <strong>{member.name || 'Atleta sin nombre'}</strong>
                       <small>{member.email || 'Sin email'}</small>
                       {member.phone && <small>{member.phone}</small>}
+                      {member.notes && <small className="membership-note">Notas: {member.notes}</small>}
                     </td>
                     <td>{member.planName || '-'}</td>
+                    <td>{formatDate(member.startDate)}</td>
                     <td>{formatDate(member.membershipEndDate)}</td>
                     <td className={member.daysLeft != null && member.daysLeft < 0 ? 'danger-text' : ''}>
                       {member.daysLeft == null ? '-' : member.daysLeft}
                     </td>
                     <td><span className={`status-chip ${member.membershipStatus || 'inactive'}`}>{member.membershipStatus || 'inactive'}</span></td>
                     <td>{formatDate(member.lastPaymentAt)}</td>
+                    <td>{formatDate(member.nextPaymentDueAt)}</td>
                     <td>
                       <div className="membership-actions">
                         <button className="btn-ghost btn-sm" onClick={() => openEdit(member)}>Editar</button>
@@ -289,7 +294,7 @@ export default function MembershipsPanel() {
               <label>Inicio
                 <input type="date" value={editing.startDate} onChange={(event) => setEditing({ ...editing, startDate: event.target.value })} />
               </label>
-              <label>Vencimiento
+              <label>Vence
                 <input type="date" value={editing.endDate} onChange={(event) => setEditing({ ...editing, endDate: event.target.value })} />
               </label>
             </div>

@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/scripts/seed.js",
+    "smoke:sprint4": "node src/scripts/smokeSprint4.js",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {

@@ -170,4 +170,19 @@ describe('automatic reminder idempotency', () => {
     assert.equal(first.created + second.created, 1);
     assert.equal(keys.size, 1);
   });
+
+  test('scopes a smoke sweep to the supplied member ids', async (t) => {
+    const expectedIds = ['64b000000000000000000091', '64b000000000000000000092'];
+    let receivedFilter;
+    t.mock.method(Member, 'find', async (filter) => {
+      receivedFilter = filter;
+      return [];
+    });
+
+    const result = await runMembershipReminders(new Date(), { memberIds: expectedIds });
+
+    assert.deepEqual(receivedFilter._id, { $in: expectedIds });
+    assert.equal(result.scanned, 0);
+    assert.equal(result.created, 0);
+  });
 });

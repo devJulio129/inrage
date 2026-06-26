@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  ActivityIndicator, TextInput, Image, Alert
+  ActivityIndicator, TextInput, Image, Alert, Linking, Share, Switch
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -160,6 +160,10 @@ export default function ProfileScreen({ user, onUserUpdate }) {
   const [editGender, setEditGender] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState(null);
+  const [publicProfile, setPublicProfile] = useState(null);
+  const [publicDraft, setPublicDraft] = useState(null);
+  const [publicSaving, setPublicSaving] = useState(false);
+  const [publicError, setPublicError] = useState(null);
 
   function toggleCat(category) {
     setOpenCats(prev => {
@@ -172,14 +176,19 @@ export default function ProfileScreen({ user, onUserUpdate }) {
   useEffect(() => {
     (async () => {
       try {
-        const [me, att, prList] = await Promise.all([
+        const [me, att, prList, publicData] = await Promise.all([
           api.me().catch(() => user),
           api.myAttendance().catch(() => null),
           api.getPRs().catch(() => []),
+          api.getMyPublicProfile().catch(() => null),
         ]);
         setProfile(me || user);
         setVisits(att?.totalVisits ?? null);
         setStreak(att?.streak ?? null);
+        if (publicData?.publicProfile) {
+          setPublicProfile(publicData.publicProfile);
+          setPublicDraft(publicData.publicProfile);
+        }
         const map = {};
         for (const pr of (prList || [])) map[pr.movement] = { value: pr.value, unit: pr.unit };
         setPrs(map);
@@ -286,11 +295,90 @@ export default function ProfileScreen({ user, onUserUpdate }) {
     }
   }
 
+  function updatePublicDraft(patch) {
+    setPublicDraft(prev => ({
+      enabled: false,
+      slug: '',
+      bio: '',
+      showAttendanceStats: true,
+      showPrs: true,
+      showBadges: true,
+      ...(prev || publicProfile || {}),
+      ...patch
+    }));
+  }
+
+  async function savePublicProfile(patch = {}) {
+    const next = {
+      enabled: false,
+      slug: '',
+      bio: '',
+      showAttendanceStats: true,
+      showPrs: true,
+      showBadges: true,
+      ...(publicDraft || publicProfile || {}),
+      ...patch
+    };
+    if ((next.bio || '').length > 300) {
+      setPublicError('La bio puede tener maximo 300 caracteres.');
+      return;
+    }
+    setPublicSaving(true);
+    setPublicError(null);
+    try {
+      const data = await api.updateMyPublicProfile({
+        enabled: next.enabled,
+        slug: next.slug,
+        bio: next.bio,
+        showAttendanceStats: next.showAttendanceStats,
+        showPrs: next.showPrs,
+        showBadges: next.showBadges
+      });
+      setPublicProfile(data.publicProfile);
+      setPublicDraft(data.publicProfile);
+    } catch (e) {
+      setPublicError(e.message);
+    } finally {
+      setPublicSaving(false);
+    }
+  }
+
+  async function sharePublicLink() {
+    const url = publicProfile?.publicUrl;
+    if (!url) return;
+    try {
+      await Share.share({ message: url, url });
+    } catch {
+      Alert.alert('Link publico', url);
+    }
+  }
+
+  async function openPublicProfile() {
+    const url = publicProfile?.publicUrl;
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      Alert.alert('Link publico', url);
+      return;
+    }
+    const supported = await Linking.canOpenURL(url);
+    if (supported) Linking.openURL(url);
+    else Alert.alert('No se pudo abrir', url);
+  }
+
   const initials = (profile?.name || 'A')
     .split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   const isActive = profile?.role === 'admin' || profile?.status !== 'pending';
   const rankMeta = RANK_META[profile?.rank];
+  const publicView = {
+    enabled: false,
+    slug: '',
+    bio: '',
+    showAttendanceStats: true,
+    showPrs: true,
+    showBadges: true,
+    ...(publicDraft || publicProfile || {})
+  };
 
   return (
     <ScrollView
@@ -435,6 +523,99 @@ export default function ProfileScreen({ user, onUserUpdate }) {
                 </Pressable>
               </>
             )}
+          </View>
+
+          <View style={styles.publicCard}>
+            <View style={styles.publicHeader}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.publicKicker}>MI PERFIL PUBLICO</Text>
+                <Text style={styles.publicTitle}>
+                  {publicView.enabled ? 'Visible para compartir' : 'Desactivado'}
+                </Text>
+              </View>
+              <Switch
+                value={publicView.enabled}
+                onValueChange={(value) => savePublicProfile({ enabled: value })}
+                disabled={publicSaving}
+                trackColor={{ false: '#333', true: 'rgba(70,226,42,0.45)' }}
+                thumbColor={publicView.enabled ? colors.accent : '#f4f3f4'}
+              />
+            </View>
+
+            <Text style={styles.editLabel}>BIO PUBLICA</Text>
+            <TextInput
+              style={[styles.editInput, styles.publicBioInput]}
+              value={publicView.bio}
+              onChangeText={(text) => updatePublicDraft({ bio: text.slice(0, 300) })}
+              placeholder="Cuenta algo breve sobre tu entrenamiento"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={300}
+            />
+            <Text style={styles.publicCounter}>{(publicView.bio || '').length}/300</Text>
+
+            <Text style={styles.editLabel}>SLUG</Text>
+            <TextInput
+              style={styles.editInput}
+              value={publicView.slug}
+              onChangeText={(text) => updatePublicDraft({ slug: text.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+              placeholder="mi-nombre"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+            />
+
+            <View style={styles.publicToggleRow}>
+              <Text style={styles.publicToggleText}>Mostrar stats de asistencia</Text>
+              <Switch
+                value={publicView.showAttendanceStats}
+                onValueChange={(value) => updatePublicDraft({ showAttendanceStats: value })}
+                disabled={publicSaving}
+                trackColor={{ false: '#333', true: 'rgba(70,226,42,0.45)' }}
+                thumbColor={publicView.showAttendanceStats ? colors.accent : '#f4f3f4'}
+              />
+            </View>
+            <View style={styles.publicToggleRow}>
+              <Text style={styles.publicToggleText}>Mostrar PRs</Text>
+              <Switch
+                value={publicView.showPrs}
+                onValueChange={(value) => updatePublicDraft({ showPrs: value })}
+                disabled={publicSaving}
+                trackColor={{ false: '#333', true: 'rgba(70,226,42,0.45)' }}
+                thumbColor={publicView.showPrs ? colors.accent : '#f4f3f4'}
+              />
+            </View>
+            <View style={styles.publicToggleRow}>
+              <Text style={styles.publicToggleText}>Mostrar badges</Text>
+              <Switch
+                value={publicView.showBadges}
+                onValueChange={(value) => updatePublicDraft({ showBadges: value })}
+                disabled={publicSaving}
+                trackColor={{ false: '#333', true: 'rgba(70,226,42,0.45)' }}
+                thumbColor={publicView.showBadges ? colors.accent : '#f4f3f4'}
+              />
+            </View>
+
+            {publicProfile?.publicUrl && (
+              <Text style={styles.publicUrl} numberOfLines={1}>{publicProfile.publicUrl}</Text>
+            )}
+            {publicError && <Text style={styles.editError}>{publicError}</Text>}
+
+            <View style={styles.publicActions}>
+              <Pressable style={styles.publicGhostBtn} onPress={sharePublicLink} disabled={!publicProfile?.publicUrl}>
+                <Ionicons name="share-outline" size={15} color={colors.accent} />
+                <Text style={styles.publicGhostText}>Compartir link</Text>
+              </Pressable>
+              <Pressable style={styles.publicGhostBtn} onPress={openPublicProfile} disabled={!publicProfile?.publicUrl}>
+                <Ionicons name="open-outline" size={15} color={colors.accent} />
+                <Text style={styles.publicGhostText}>Ver perfil</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={styles.editSaveBtn} onPress={() => savePublicProfile()} disabled={publicSaving}>
+              {publicSaving
+                ? <ActivityIndicator color="#05230b" />
+                : <Text style={styles.editSaveBtnText}>GUARDAR PERFIL PUBLICO</Text>}
+            </Pressable>
           </View>
 
           <View style={styles.sectionHeadRow}>
@@ -642,6 +823,39 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     borderRadius: radii.lg, paddingHorizontal: spacing.lg, marginBottom: spacing.xl
   },
+  publicCard: {
+    width: '100%', backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.lg, paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md, marginBottom: spacing.xl
+  },
+  publicHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingBottom: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border
+  },
+  publicKicker: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  publicTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '800', marginTop: 3 },
+  publicBioInput: { minHeight: 92, textAlignVertical: 'top' },
+  publicCounter: { color: colors.textMuted, fontSize: 11, textAlign: 'right', marginTop: 4 },
+  publicToggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border
+  },
+  publicToggleText: { color: colors.textPrimary, fontSize: 14, flex: 1, paddingRight: spacing.md },
+  publicUrl: {
+    color: colors.textMuted, fontSize: 12, marginTop: spacing.md,
+    backgroundColor: colors.surfaceAlt, borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm, paddingVertical: 8
+  },
+  publicActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  publicGhostBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.md, paddingVertical: 11
+  },
+  publicGhostText: { color: colors.accent, fontSize: 13, fontWeight: '800' },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 15,

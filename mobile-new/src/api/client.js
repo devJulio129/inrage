@@ -127,6 +127,12 @@ export const api = {
     }),
 
   me: () => request('/api/auth/me'),
+  getMyPublicProfile: () => request('/api/me/public-profile'),
+  updateMyPublicProfile: (data) =>
+    request('/api/me/public-profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
 
   getTodayWorkout: () => request('/api/workouts/today'),
   getRecentWorkouts: () => request('/api/workouts/recent'),
