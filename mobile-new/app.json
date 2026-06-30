@@ -2,11 +2,11 @@
   "expo": {
     "name": "InRage CrossFit",
     "slug": "inrage",
-    "version": "1.0.3",
+    "version": "1.3.0",
     "orientation": "portrait",
     "scheme": "inrage",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.devjulio129.inrage",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
@@ -28,7 +28,7 @@
     },
     "android": {
       "package": "com.devjulio129.inrage",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#050605"
@@ -40,6 +40,7 @@
     },
     "extra": {
       "apiUrl": "https://inrage-backend.onrender.com",
+      "releaseLabel": "1.3.0-RC4",
       "googleClientId": null,
       "googleIosClientId": null,
       "googleAndroidClientId": "419989569431-0g1tagbp2hdhoaodb63sgovb45ddl1db.apps.googleusercontent.com",
@@ -66,7 +67,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-notifications"
     ],
     "owner": "schoolyardjujus"
   }

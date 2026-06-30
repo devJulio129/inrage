@@ -12,8 +12,9 @@ const API_PORT = 4000;
 // connects to). This works without hardcoding anything and survives IP changes.
 function resolveApiUrl() {
   const explicit = Constants.expoConfig?.extra?.apiUrl;
-  // Honor an explicit, non-localhost URL if you set one in app.json.
-  if (explicit && !/localhost|127\.0\.0\.1/.test(explicit)) return explicit;
+  // Production builds honor the configured backend URL. In Expo development,
+  // prefer the Metro LAN host so the phone talks to the backend running here.
+  if (!__DEV__ && explicit && !/localhost|127\.0\.0\.1/.test(explicit)) return explicit;
 
   // Grab the dev machine host (e.g. "10.0.0.11:8081") from Expo.
   // Only use the current (non-deprecated) accessors to avoid SDK 54 throwing.
@@ -94,9 +95,18 @@ async function request(path, options = {}) {
     const body = await res.json().catch(() => ({}));
     const err = new Error(body.error || `HTTP ${res.status}`);
     err.status = res.status;
+    err.code = body.status || body.code || null;
+    err.payload = body;
     throw err;
   }
   return res.json();
+}
+
+function toQuery(params = {}) {
+  const pairs = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  return pairs.length ? `?${pairs.join('&')}` : '';
 }
 
 export const api = {
@@ -105,6 +115,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password })
     }),
+  forgotPassword: (email) =>
+    request('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    }),
+  getSupportWhatsappLink: () => request('/api/support/whatsapp-link'),
 
   register: (data) =>
     request('/api/auth/register', {
@@ -133,6 +149,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data)
     }),
+  getPublicAthlete: (slug) =>
+    request(`/api/public/athletes/${encodeURIComponent(slug)}`),
 
   getTodayWorkout: () => request('/api/workouts/today'),
   getRecentWorkouts: () => request('/api/workouts/recent'),
@@ -158,16 +176,21 @@ export const api = {
   deleteComment: (id) => request(`/api/comments/${id}`, { method: 'DELETE' }),
 
   getGymInfo: () => request('/api/gym-info'),
+  getHomeHighlights: () => request('/api/home/highlights'),
 
   // Clases con cupo
-  getClasses: () => request('/api/classes'),
+  getClasses: (params = {}) => request(`/api/classes${toQuery(params)}`),
+  getClassesCalendar: (params = {}) => request(`/api/classes/calendar${toQuery(params)}`),
   reserveClass: (id) => request(`/api/classes/${id}/reserve`, { method: 'POST' }),
   cancelClassReservation: (id) =>
     request(`/api/classes/${id}/reserve`, { method: 'DELETE' }),
-  checkInWithQr: (token) =>
-    request('/api/classes/check-in/qr', {
+  checkInWithQr: (token, options = {}) =>
+    request('/api/attendances/check-in/qr', {
       method: 'POST',
-      body: JSON.stringify({ token })
+      body: JSON.stringify({
+        token,
+        ...(options.confirmAutoReserve ? { confirmAutoReserve: true } : {})
+      })
     }),
 
   // Publicaciones del gimnasio
@@ -200,6 +223,17 @@ export const api = {
   savePushToken: (data) =>
     request('/api/notifications/push-token', {
       method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  registerPushToken: (data) =>
+    request('/api/push/register', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  getPushPreferences: () => request('/api/push/preferences'),
+  updatePushPreferences: (data) =>
+    request('/api/push/preferences', {
+      method: 'PATCH',
       body: JSON.stringify(data)
     }),
 

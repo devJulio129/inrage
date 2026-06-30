@@ -1,5 +1,6 @@
 export const RESERVATION_STATUSES = ['reserved', 'checked_in', 'cancelled', 'no_show', 'waitlist'];
 export const CHECK_IN_METHODS = ['qr_scan', 'admin_manual'];
+export const RESERVATION_SOURCES = ['athlete', 'admin', 'qr_auto'];
 
 export function reservationMemberId(reservation) {
   return String(reservation?.member?._id || reservation?.member || '');
@@ -54,10 +55,13 @@ export function serializeRosterMember(reservation) {
     member: member._id || member,
     name: member.name || '',
     email: member.email || null,
+    phone: member.phone || null,
     status: normalizeReservationStatus(reservation),
     reservedAt: reservation.reservedAt || reservation.at || null,
     checkedInAt: reservation.checkedInAt || null,
     cancelledAt: reservation.cancelledAt || null,
-    checkInMethod: reservation.checkInMethod || null
+    checkInMethod: reservation.checkInMethod || null,
+    source: RESERVATION_SOURCES.includes(reservation.source) ? reservation.source : 'athlete',
+    autoReservedByQr: Boolean(reservation.autoReservedByQr)
   };
 }

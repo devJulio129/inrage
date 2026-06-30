@@ -1,6 +1,6 @@
 {
   "name": "inrage-backend",
-  "version": "0.1.0",
+  "version": "1.3.0",
   "description": "InRage API server",
   "main": "src/index.js",
   "type": "module",
@@ -8,6 +8,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/scripts/seed.js",
+    "migrate:class-indexes": "node src/scripts/migrateClassBranchIndexes.js",
+    "jobs:notifications": "node src/scripts/runNotificationJobs.js",
     "smoke:sprint4": "node src/scripts/smokeSprint4.js",
     "test": "node --test \"tests/**/*.test.js\""
   },

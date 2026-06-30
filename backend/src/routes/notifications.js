@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { protect } from '../middleware/authMiddleware.js';
 import { Member } from '../models/Member.js';
 import { Notification } from '../models/Notification.js';
+import { PushToken } from '../models/PushToken.js';
+import { notificationService } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -46,7 +48,7 @@ router.post('/push-token', async (req, res, next) => {
   try {
     const token = String(req.body?.token || '').trim();
     if (!token) return res.status(400).json({ error: 'Falta push token' });
-    if (token.length > 500) return res.status(400).json({ error: 'Push token invalido' });
+    if (!notificationService.isExpoPushToken(token)) return res.status(400).json({ error: 'Push token invalido' });
 
     const member = await Member.findById(req.user._id);
     if (!member) return res.status(404).json({ error: 'Miembro no encontrado' });
@@ -65,6 +67,20 @@ router.post('/push-token', async (req, res, next) => {
         lastUsedAt: now
       });
     }
+    await PushToken.updateOne(
+      { token },
+      {
+        $set: {
+          member: req.user._id,
+          platform: ['android', 'ios', 'web'].includes(req.body?.platform) ? req.body.platform : 'unknown',
+          deviceName: String(req.body?.deviceName || req.body?.deviceId || '').trim().slice(0, 120),
+          enabled: true,
+          lastSeenAt: now
+        },
+        $setOnInsert: { createdAt: now }
+      },
+      { upsert: true }
+    );
     await member.save();
     res.json({ ok: true });
   } catch (err) {

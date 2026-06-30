@@ -1,6 +1,6 @@
 {
   "name": "mobile-new",
-  "version": "1.0.1",
+  "version": "1.3.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start --go --tunnel",
@@ -25,6 +25,7 @@
     "expo-font": "~14.0.12",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
+    "expo-notifications": "~0.32.17",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.11",
     "react": "19.1.0",

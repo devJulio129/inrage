@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { api } from './api';
 
@@ -58,6 +58,7 @@ function AthleteRow({ athlete, action, busy }) {
         {athlete.email && <span>{athlete.email}</span>}
       </div>
       <div className="roster-athlete-meta">
+        <span className="pill pill-green">{athlete.autoReservedByQr ? 'Agregado por QR' : 'Reserva previa'}</span>
         <span className="pill pill-blue">{athlete.status || '-'}</span>
         <span>Reserva {formatDateTime(athlete.reservedAt)}</span>
         <span>Check-in {formatDateTime(athlete.checkedInAt)}</span>
@@ -107,6 +108,13 @@ export default function CheckInPanel() {
   const [rosterError, setRosterError] = useState(null);
   const [markingId, setMarkingId] = useState(null);
 
+  const [qrBranch, setQrBranch] = useState('Torres');
+  const [branchQr, setBranchQr] = useState(null);
+  const [branchQrLoading, setBranchQrLoading] = useState(false);
+  const [branchQrError, setBranchQrError] = useState(null);
+  const [qrFullscreen, setQrFullscreen] = useState(false);
+  const printQrRef = useRef(null);
+
   const [qrClass, setQrClass] = useState(null);
   const [qrToken, setQrToken] = useState(null);
   const [qrLoading, setQrLoading] = useState(false);
@@ -131,6 +139,33 @@ export default function CheckInPanel() {
       .finally(() => setRosterLoading(false));
   }, []);
 
+  const loadBranchQr = useCallback((branch = qrBranch, silent = false) => {
+    if (!silent) {
+      setBranchQrLoading(true);
+      setBranchQrError(null);
+    }
+    return api.getBranchCheckInQr(branch)
+      .then((data) => {
+        setBranchQr(data);
+        setBranchQrError(null);
+      })
+      .catch((err) => {
+        setBranchQr(null);
+        if (err.code === 'qr_not_generated' || err.status === 404) {
+          setBranchQrError(null);
+          return;
+        }
+        if (err.status === 503 || err.message === 'QR Check-in no está configurado.') {
+          setBranchQrError('QR Check-in no está configurado.');
+          return;
+        }
+        setBranchQrError(err.message);
+      })
+      .finally(() => {
+        if (!silent) setBranchQrLoading(false);
+      });
+  }, [qrBranch]);
+
   const loadQrToken = useCallback((classItem, mode = 'current', silent = false) => {
     if (!classItem) return Promise.resolve();
     const classId = getClassId(classItem);
@@ -153,6 +188,10 @@ export default function CheckInPanel() {
   useEffect(() => {
     loadToday();
   }, [loadToday]);
+
+  useEffect(() => {
+    loadBranchQr(qrBranch);
+  }, [qrBranch, loadBranchQr]);
 
   useEffect(() => {
     if (!qrToken?.expiresAt) return;
@@ -179,6 +218,7 @@ export default function CheckInPanel() {
     const payload = qrToken.qrPayload || { type: 'inrage_check_in', token: qrToken.token };
     return typeof payload === 'string' ? payload : JSON.stringify(payload);
   }, [qrToken]);
+  const branchQrValue = useMemo(() => branchQr?.qrValue || '', [branchQr?.qrValue]);
 
   function openRoster(item) {
     setRosterClass(item);
@@ -191,6 +231,96 @@ export default function CheckInPanel() {
     setQrToken(null);
     setQrSeconds(0);
     loadQrToken(item, 'current');
+  }
+
+  async function generateBranchQr() {
+    const ok = window.confirm(
+      `Generar un QR nuevo para ${qrBranch} invalidara cualquier QR impreso anteriormente de esa sede. ¿Continuar?`
+    );
+    if (!ok) return;
+    setBranchQrLoading(true);
+    setBranchQrError(null);
+    try {
+      const data = await api.generateBranchCheckInQr(qrBranch);
+      setBranchQr(data);
+    } catch (err) {
+      setBranchQrError(err.message);
+    } finally {
+      setBranchQrLoading(false);
+    }
+  }
+
+  function printableCanvas() {
+    return printQrRef.current?.querySelector('canvas') || null;
+  }
+
+  function downloadBranchQr() {
+    const canvas = printableCanvas();
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `inrage-checkin-qr-${qrBranch.toLowerCase()}-v${branchQr?.generation || 1}.png`;
+    link.click();
+  }
+
+  function printBranchQr() {
+    const canvas = printableCanvas();
+    if (!canvas) return;
+    const image = canvas.toDataURL('image/png');
+    const generated = branchQr?.generatedAt ? new Date(branchQr.generatedAt).toLocaleString('es-MX') : '';
+    const win = window.open('', '_blank', 'noopener,noreferrer');
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head>
+          <title>Inrage QR ${qrBranch}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 40px; text-align: center; color: #111; }
+            h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+            p { margin: 6px 0; color: #444; font-size: 14px; }
+            img { width: 70vw; max-width: 720px; height: auto; margin: 24px auto; display: block; }
+            .badge { display: inline-block; padding: 8px 14px; border: 2px solid #111; border-radius: 999px; font-weight: 700; }
+          </style>
+        </head>
+        <body>
+          <p class="badge">CHECK-IN INRAGE</p>
+          <h1>${qrBranch}</h1>
+          <p>Escanea este codigo desde la app para confirmar asistencia.</p>
+          <img src="${image}" alt="QR Check-in ${qrBranch}" />
+          <p>Version ${branchQr?.generation || 1}${generated ? ` - Generado ${generated}` : ''}</p>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 250);
+  }
+
+  function renderBranchQr(stage = 'inline') {
+    const size = stage === 'fullscreen' ? 520 : 320;
+    return (
+      <div className={stage === 'fullscreen' ? 'branch-qr-stage fullscreen' : 'branch-qr-stage'}>
+        <div className="branch-qr-code">
+          {branchQrValue ? (
+            <QRCodeCanvas value={branchQrValue} size={size} level="H" includeMargin />
+          ) : (
+            <div className="branch-qr-empty">
+              <strong>Sin QR activo</strong>
+              <span>Genera uno nuevo para imprimirlo en el gym.</span>
+            </div>
+          )}
+        </div>
+        {branchQrValue && (
+          <div className="qr-meta">
+            <strong>v{branchQr?.generation || 1}</strong>
+            <span>vigente desde {branchQr?.generatedAt ? formatDateTime(branchQr.generatedAt) : '-'}</span>
+          </div>
+        )}
+        <p className="muted branch-qr-help">
+          Los atletas deben abrir la app, tocar Check-in y escanear este codigo impreso.
+        </p>
+      </div>
+    );
   }
 
   async function markPresent(athlete) {
@@ -220,8 +350,58 @@ export default function CheckInPanel() {
       </div>
 
       <p className="muted checkin-intro">
-        Operacion diaria: roster por clase, QR dinamico y respaldo manual.
+        Operacion diaria: QR estatico vigente por sucursal, roster por clase y respaldo manual.
       </p>
+
+      <div className="card branch-qr-card">
+        <div className="branch-qr-layout">
+          <div className="branch-qr-copy">
+            <p className="modal-kicker">QR Check-in</p>
+            <h3>{qrBranch}</h3>
+            <p className="muted">
+              Genera un QR por sede, imprimelo y pegalo en recepcion. Al generar uno nuevo, el anterior queda invalidado.
+            </p>
+            <div className="segmented branch-qr-segmented">
+              {['Torres', 'Central'].map((branch) => (
+                <button
+                  key={branch}
+                  type="button"
+                  className={qrBranch === branch ? 'active' : ''}
+                  onClick={() => setQrBranch(branch)}
+                >
+                  {branch}
+                </button>
+              ))}
+            </div>
+            <div className="row">
+              <button className="btn-primary" onClick={generateBranchQr} disabled={branchQrLoading}>
+                {branchQrLoading ? 'Generando...' : branchQrValue ? 'Generar nuevo QR' : 'Generar QR'}
+              </button>
+              <button className="btn-ghost" onClick={downloadBranchQr} disabled={!branchQrValue}>
+                Descargar PNG
+              </button>
+              <button className="btn-ghost" onClick={printBranchQr} disabled={!branchQrValue}>
+                Imprimir
+              </button>
+              <button className="btn-ghost" onClick={() => setQrFullscreen(true)} disabled={!branchQrValue}>
+                Pantalla completa
+              </button>
+            </div>
+            {branchQrError && <p className="error">Error: {branchQrError}</p>}
+            {branchQrValue && (
+              <p className="muted qr-static-note">
+                QR vigente para {qrBranch}. Si generas otro, este archivo impreso deja de servir.
+              </p>
+            )}
+          </div>
+          {renderBranchQr()}
+        </div>
+        {branchQrValue && (
+          <div className="print-qr-hidden" ref={printQrRef} aria-hidden="true">
+            <QRCodeCanvas value={branchQrValue} size={1400} level="H" includeMargin />
+          </div>
+        )}
+      </div>
 
       {message && <p className="ok">{message}</p>}
       {loading && classes.length === 0 && <p className="muted">Cargando clases de hoy...</p>}
@@ -262,7 +442,6 @@ export default function CheckInPanel() {
 
               <div className="checkin-actions">
                 <button className="btn-ghost" onClick={() => openRoster(item)}>Ver roster</button>
-                <button className="btn-primary" onClick={() => openQr(item)}>Mostrar QR</button>
               </div>
             </div>
           );
@@ -365,6 +544,21 @@ export default function CheckInPanel() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {qrFullscreen && (
+        <div className="qr-fullscreen" onMouseDown={() => setQrFullscreen(false)}>
+          <div className="qr-fullscreen-inner" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="modal-kicker">QR Check-in</p>
+                <h3>{qrBranch}</h3>
+              </div>
+              <button className="btn-ghost" onClick={() => setQrFullscreen(false)}>Cerrar</button>
+            </div>
+            {renderBranchQr('fullscreen')}
           </div>
         </div>
       )}

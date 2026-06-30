@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, spacing, type } from '../theme';
+import { colors, radii, spacing, type, useAppTheme } from '../theme';
 
 export function extractQrToken(raw) {
   const value = String(raw || '').trim();
@@ -27,10 +27,28 @@ export function extractQrToken(raw) {
   return value;
 }
 
-function friendlyQrError(message) {
+function friendlyQrError(message, code = '') {
+  const status = String(code || '').toLowerCase();
+  if (status === 'qr_not_configured') return 'QR Check-in no está configurado.';
+  if (status === 'qr_not_generated') return 'El box aun no ha generado el QR de esta sucursal.';
+  if (status === 'qr_replaced') return 'Este QR ya fue reemplazado. Escanea el codigo nuevo del box.';
+  if (status === 'qr_expired') return 'Este QR ya expiro. Escanea el codigo nuevo de la pantalla.';
+  if (status === 'invalid_qr') return 'Este QR no es valido. Escanea el QR actual del box.';
+  if (status === 'wrong_branch_for_reservation') return 'Tu reserva es en otra sucursal. Escanea el QR de tu sucursal.';
+  if (status === 'wrong_class_for_reservation') return 'Tu reserva es para otra hora. Cambia tu reservacion antes de escanear.';
+  if (status === 'too_early_for_checkin') return 'El check-in de tu clase aun no esta abierto.';
+  if (status === 'too_late_for_checkin') return 'La ventana de check-in de tu reserva ya cerro.';
+  if (status === 'no_available_class') return 'No hay clases disponibles para check-in en esta sucursal.';
+  if (status === 'class_full') return 'La clase disponible esta llena. Te esperamos en la siguiente.';
+  if (status === 'outside_checkin_window') return 'El check-in de tu clase aun no esta abierto.';
   const text = String(message || '').toLowerCase();
   if (text.includes('expir')) return 'Este QR ya expiro. Escanea el nuevo codigo.';
   if (text.includes('inval')) return 'QR invalido.';
+  if (text.includes('no está configurado') || text.includes('no esta configurado')) return 'QR Check-in no está configurado.';
+  if (text.includes('otra sucursal') || text.includes('escaneaste el qr de')) return 'Tu reserva pertenece a otra sucursal.';
+  if (text.includes('no hay clases')) return 'No hay clases disponibles para check-in.';
+  if (text.includes('llena')) return 'La clase esta llena. Busca la siguiente clase disponible.';
+  if (text.includes('aun no esta abierto')) return 'El check-in de esta clase aun no esta abierto.';
   if (text.includes('no tienes reserva')) return 'No tienes reserva para esta clase.';
   if (text.includes('cancel')) return 'Tu reserva esta cancelada.';
   if (text.includes('lista de espera') || text.includes('waitlist')) return 'Estas en lista de espera.';
@@ -38,12 +56,32 @@ function friendlyQrError(message) {
   return 'No pudimos confirmar tu check-in. Intenta de nuevo.';
 }
 
+function friendlyQrResult(result) {
+  if (result?.message) return result.message;
+  if (result?.status === 'reservation_required') {
+    return 'Confirma para reservar esta clase y hacer check-in.';
+  }
+  if (result?.status === 'auto_reserved_and_checked_in') {
+    return 'No tenias reserva. Te agregamos a la clase mas cercana.';
+  }
+  if (result?.status === 'moved_to_next_available_class') {
+    return 'La clase anterior ya cerro check-in. Te agregamos a la siguiente clase.';
+  }
+  if (result?.alreadyCheckedIn || result?.status === 'already_checked_in') {
+    return 'Ya estabas registrado en esta clase.';
+  }
+  return 'Check-in confirmado para tu clase reservada.';
+}
+
 export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [pendingToken, setPendingToken] = useState(null);
   const scanLock = useRef(false);
 
   useEffect(() => {
@@ -52,6 +90,7 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
     setSubmitting(false);
     setResult(null);
     setError(null);
+    setPendingToken(null);
     scanLock.current = false;
   }, [visible]);
 
@@ -69,12 +108,29 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
       return;
     }
 
+    setPendingToken(token);
     try {
       const response = await onSubmit(token);
       setResult(response);
     } catch (err) {
-      setError(friendlyQrError(err.message));
+      setError(friendlyQrError(err.payload?.message || err.message, err.code || err.payload?.status));
       setScanned(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function confirmReservationCheckIn() {
+    if (!pendingToken || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await onSubmit(pendingToken, { confirmAutoReserve: true });
+      setResult(response);
+    } catch (err) {
+      setError(friendlyQrError(err.payload?.message || err.message, err.code || err.payload?.status));
+      setResult(null);
+      scanLock.current = false;
     } finally {
       setSubmitting(false);
     }
@@ -85,6 +141,7 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
     setSubmitting(false);
     setResult(null);
     setError(null);
+    setPendingToken(null);
     scanLock.current = false;
   }
 
@@ -154,12 +211,28 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
                   <Text style={styles.sheetTitle}>Confirmando check-in...</Text>
                   <Text style={styles.muted}>No cierres esta pantalla.</Text>
                 </>
+              ) : result?.status === 'reservation_required' ? (
+                <>
+                  <Ionicons name="calendar-outline" size={42} color={colors.accent} />
+                  <Text style={styles.sheetTitle}>{result.title || 'Necesitas reservar esta clase'}</Text>
+                  <Text style={styles.muted}>
+                    {friendlyQrResult(result)}
+                  </Text>
+                  <View style={styles.row}>
+                    <Pressable style={[styles.secondaryBtn, styles.rowBtn]} onPress={onClose}>
+                      <Text style={styles.secondaryText}>Volver</Text>
+                    </Pressable>
+                    <Pressable style={[styles.primaryBtn, styles.rowBtn]} onPress={confirmReservationCheckIn}>
+                      <Text style={styles.primaryText}>{result.actionLabel || 'RESERVAR Y HACER CHECK-IN'}</Text>
+                    </Pressable>
+                  </View>
+                </>
               ) : result ? (
                 <>
                   <Ionicons name="checkmark-circle" size={42} color={colors.accent} />
-                  <Text style={styles.sheetTitle}>Check-in confirmado</Text>
+                  <Text style={styles.sheetTitle}>{result.title || 'Check-in confirmado'}</Text>
                   <Text style={styles.muted}>
-                    {result.alreadyCheckedIn ? 'Ya estabas registrado en esta clase.' : 'Listo, tu asistencia quedo registrada.'}
+                    {friendlyQrResult(result)}
                   </Text>
                   <Pressable style={styles.primaryBtn} onPress={onClose}>
                     <Text style={styles.primaryText}>LISTO</Text>
@@ -182,7 +255,7 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
               ) : (
                 <>
                   <Text style={styles.sheetTitle}>Apunta al QR del box</Text>
-                  <Text style={styles.muted}>El codigo cambia rapido, usa el que este visible en pantalla.</Text>
+                  <Text style={styles.muted}>Usa el codigo impreso de tu sucursal para confirmar asistencia.</Text>
                 </>
               )}
             </View>
@@ -193,7 +266,8 @@ export default function QrCheckInScanner({ visible, onClose, onSubmit }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.base },
   header: {
     flexDirection: 'row',
@@ -284,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.sm
   },
-  primaryText: { color: '#05230b', fontWeight: '900', fontSize: 13, letterSpacing: 1 },
+  primaryText: { color: '#05230b', fontWeight: '900', fontSize: 12, letterSpacing: 0.6, textAlign: 'center' },
   secondaryBtn: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -297,4 +371,7 @@ const styles = StyleSheet.create({
   secondaryText: { color: colors.textPrimary, fontWeight: '700', fontSize: 13 },
   row: { flexDirection: 'row', gap: spacing.sm, width: '100%' },
   rowBtn: { flex: 1 }
-});
+  });
+}
+
+let styles = createStyles(colors);

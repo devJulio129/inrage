@@ -7,12 +7,35 @@ import BusinessPanel from './BusinessPanel';
 import MembershipsPanel from './MembershipsPanel';
 import PublicProfilesPanel from './PublicProfilesPanel';
 import PublicAthletePage from './PublicAthletePage';
+import AdminHomePanel from './AdminHomePanel';
+import ResetPasswordPage from './ResetPasswordPage';
 
 const EMPTY_FORM = {
   name: '', email: '', password: '', phone: '', birthDate: '', gender: '', role: 'athlete', joinedAt: '',
 };
 
 const EMPTY_WOD = { title: '', description: '', date: '' };
+const BRANCHES = ['Torres', 'Central'];
+const BRANCH_FILTERS = ['all', ...BRANCHES];
+const GYM_UTC_OFFSET_HOURS = -6;
+const EMPTY_CLASS_FORM = {
+  date: '',
+  time: '18:00',
+  branch: 'Torres',
+  name: 'CrossFit',
+  description: '',
+  backgroundImage: '',
+  capacity: 12,
+  isSpecial: false,
+  featuredOnHome: false,
+  specialLabel: 'Clase especial',
+  specialDescription: '',
+  specialIcon: 'star',
+  specialColor: '',
+  homePriority: 0,
+  visibleFrom: '',
+  visibleUntil: ''
+};
 
 // Rangos del atleta — los asigna el admin (tiempo entrenando + pesos). Es una
 // progresión motivacional, no una etiqueta de valor: tonos positivos para todos.
@@ -89,6 +112,15 @@ function localDayStr(offsetDays = 0) {
 // en zonas horarias distintas).
 function classDay(date) {
   return new Date(date).toISOString().slice(0, 10);
+}
+
+function gymDateTimeInputValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Date(date.getTime() + GYM_UTC_OFFSET_HOURS * 3600 * 1000)
+    .toISOString()
+    .slice(0, 16);
 }
 
 function dayLabel(date) {
@@ -222,6 +254,26 @@ const NAV_ITEMS = [
   { id: 'logs', label: 'Accesos', icon: 'clock' },
 ];
 
+const MAIN_NAV_ITEMS = [
+  { id: 'home', label: 'Inicio', icon: 'home' },
+  { id: 'checkin', label: 'Check-in', icon: 'qr' },
+  { id: 'wod', label: 'WOD', icon: 'clipboard' },
+  { id: 'classes', label: 'Clases', icon: 'calendar' },
+  { id: 'memberships', label: 'Membresias', icon: 'creditCard' },
+  { id: 'messages', label: 'Mensajes', icon: 'mail' },
+  { id: 'business', label: 'Negocio', icon: 'briefcase' },
+  { id: 'posts', label: 'Avisos', icon: 'megaphone' },
+  { id: 'athletes', label: 'Atletas', icon: 'users' },
+  { id: 'info', label: 'Ajustes', icon: 'home' },
+];
+
+const TOOL_NAV_ITEMS = [
+  { id: 'gym', label: 'En el gym', icon: 'activity' },
+  { id: 'publicProfiles', label: 'Perfiles publicos', icon: 'idCard' },
+  { id: 'stats', label: 'Estadisticas', icon: 'chart' },
+  { id: 'logs', label: 'Accesos', icon: 'clock' },
+];
+
 // Reduce una imagen local a ~900px JPEG antes de subirla como data-URI:
 // el feed carga rápido y la base de datos no engorda.
 function fileToSmallDataUri(file, maxW = 900, quality = 0.8) {
@@ -251,8 +303,9 @@ function eventBadge(event) {
 
 function AdminApp() {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
-  const [tab, setTab] = useState('athletes');
+  const [tab, setTab] = useState('home');
   const [msgMemberId, setMsgMemberId] = useState(null);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('adminTheme') || 'dark');
 
   // Auth
   const [email, setEmail] = useState('');
@@ -260,6 +313,12 @@ function AdminApp() {
   const [showPass, setShowPass] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMsg, setForgotMsg] = useState(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSupport, setForgotSupport] = useState(null);
+  const [forgotSupportMsg, setForgotSupportMsg] = useState(null);
 
   // Athletes
   const [members, setMembers] = useState([]);
@@ -298,11 +357,21 @@ function AdminApp() {
   const [gymSaving, setGymSaving] = useState(false);
   const [gymMsg, setGymMsg] = useState(null);
 
+  // Push notifications ops
+  const [pushStatus, setPushStatus] = useState(null);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMsg, setPushMsg] = useState(null);
+  const [pushTestMemberId, setPushTestMemberId] = useState('');
+
   // Clases (reserva con cupo)
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState(null);
-  const [classForm, setClassForm] = useState({ date: localDayStr(), time: '18:00', name: 'CrossFit', description: '', capacity: 12 });
+  const [classForm, setClassForm] = useState({ ...EMPTY_CLASS_FORM, date: localDayStr() });
+  const [classBranchFilter, setClassBranchFilter] = useState('all');
+  const [classDateFilter, setClassDateFilter] = useState(localDayStr());
+  const [openClassIds, setOpenClassIds] = useState(() => new Set());
+  const [editingClassId, setEditingClassId] = useState(null);
   const [classSaving, setClassSaving] = useState(false);
   const [classMsg, setClassMsg] = useState(null);
 
@@ -311,6 +380,7 @@ function AdminApp() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsError, setPostsError] = useState(null);
   const [postForm, setPostForm] = useState({ title: '', body: '', videoUrl: '', linkUrl: '', image: null });
+  const [editingPostId, setEditingPostId] = useState(null);
   const [postSaving, setPostSaving] = useState(false);
   const [postMsg, setPostMsg] = useState(null);
 
@@ -389,11 +459,55 @@ function AdminApp() {
       .catch(err => { setGymMsg('Error: ' + err.message); setGymLoading(false); });
   }
 
-  function fetchClasses() {
+  function fetchPushStatus() {
+    setPushLoading(true);
+    setPushMsg(null);
+    api.getPushStatus()
+      .then(data => setPushStatus(data))
+      .catch(err => setPushMsg('Error: ' + err.message))
+      .finally(() => setPushLoading(false));
+  }
+
+  function sendTestPush() {
+    setPushLoading(true);
+    setPushMsg(null);
+    api.sendTestPush(pushTestMemberId || undefined)
+      .then((data) => {
+        const sent = data?.result?.sent || 0;
+        const skipped = data?.result?.skipped || 0;
+        const failed = data?.result?.failed || 0;
+        setPushMsg(`Prueba procesada: ${sent} enviado(s), ${skipped} omitido(s), ${failed} fallido(s).`);
+        fetchPushStatus();
+      })
+      .catch(err => setPushMsg('Error: ' + err.message))
+      .finally(() => setPushLoading(false));
+  }
+
+  function runPushJobs() {
+    setPushLoading(true);
+    setPushMsg(null);
+    api.runNotificationJobs()
+      .then((data) => {
+        setPushMsg(
+          `Jobs OK: ${data.classReminders30 || 0} recordatorios 30m, ${data.classReminders15 || 0} recordatorios 15m, ${data.qrReminders || 0} QR, ${data.membershipReminders || 0} membresias.`
+        );
+        fetchPushStatus();
+      })
+      .catch(err => setPushMsg('Error: ' + err.message))
+      .finally(() => setPushLoading(false));
+  }
+
+  function fetchClasses(next = {}) {
+    const branch = next.branch ?? classBranchFilter;
+    const date = next.date ?? classDateFilter;
     setClassesLoading(true);
     setClassesError(null);
-    api.listClasses()
-      .then(data => { setClasses(data); setClassesLoading(false); })
+    api.getClassesCalendar({
+      branch,
+      from: date,
+      to: date
+    })
+      .then(data => { setClasses(data.classes || []); setClassesLoading(false); })
       .catch(err => { setClassesError(err.message); setClassesLoading(false); });
   }
 
@@ -405,6 +519,84 @@ function AdminApp() {
       .then(() => { setClassMsg('Clase abierta ✓ — ya se puede reservar desde la app'); fetchClasses(); })
       .catch(err => setClassMsg('Error: ' + err.message))
       .finally(() => setClassSaving(false));
+  }
+
+  function cleanClassPayload() {
+    const payload = { ...classForm };
+    payload.visibleFrom = payload.visibleFrom || null;
+    payload.visibleUntil = payload.visibleUntil || null;
+    payload.capacity = Number(payload.capacity || 0);
+    payload.homePriority = Number(payload.homePriority || 0);
+    payload.branch = BRANCHES.includes(payload.branch) ? payload.branch : 'Torres';
+    if (!payload.specialDescription) payload.specialDescription = payload.description || '';
+    return payload;
+  }
+
+  function submitClassForm(e) {
+    e.preventDefault();
+    setClassMsg(null);
+    setClassSaving(true);
+    const payload = cleanClassPayload();
+    const action = editingClassId
+      ? api.updateClass(editingClassId, payload)
+      : api.createClass(payload);
+    action
+      .then(() => {
+        setClassMsg(editingClassId ? 'Clase actualizada.' : 'Clase abierta - ya se puede reservar desde la app');
+        setClassDateFilter(payload.date || localDayStr());
+        setClassBranchFilter('all');
+        setEditingClassId(null);
+        setClassForm({ ...EMPTY_CLASS_FORM, date: localDayStr() });
+        fetchClasses({ branch: 'all', date: payload.date || localDayStr() });
+      })
+      .catch(err => setClassMsg('Error: ' + err.message))
+      .finally(() => setClassSaving(false));
+  }
+
+  function editClass(c) {
+    setEditingClassId(c._id);
+    setClassForm({
+      ...EMPTY_CLASS_FORM,
+      date: classDay(c.date),
+      time: c.time || '18:00',
+      branch: c.branch || 'Torres',
+      name: c.name || 'CrossFit',
+      description: c.description || '',
+      backgroundImage: c.backgroundImage || c.imageUrl || '',
+      capacity: c.capacity || 12,
+      isSpecial: Boolean(c.isSpecial),
+      featuredOnHome: Boolean(c.featuredOnHome),
+      specialLabel: c.specialLabel || 'Clase especial',
+      specialDescription: c.specialDescription || c.description || '',
+      specialIcon: c.specialIcon || 'star',
+      specialColor: c.specialColor || '',
+      homePriority: Number(c.homePriority || 0),
+      visibleFrom: gymDateTimeInputValue(c.visibleFrom),
+      visibleUntil: gymDateTimeInputValue(c.visibleUntil)
+    });
+    setClassMsg(null);
+    setTab('classes');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelClassEdit() {
+    setEditingClassId(null);
+    setClassForm({ ...EMPTY_CLASS_FORM, date: localDayStr() });
+    setClassMsg(null);
+  }
+
+  function toggleClassHome(c) {
+    api.updateClass(c._id, { isSpecial: true, featuredOnHome: !c.featuredOnHome })
+      .then(() => fetchClasses({ branch: classBranchFilter, date: classDateFilter }))
+      .catch(err => alert('Error: ' + err.message));
+  }
+
+  function toggleClassDetails(id) {
+    setOpenClassIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
   }
 
   function handleClassDelete(c) {
@@ -442,14 +634,36 @@ function AdminApp() {
     e.preventDefault();
     setPostMsg(null);
     setPostSaving(true);
-    api.createPost(postForm)
+    const action = editingPostId ? api.updatePost(editingPostId, postForm) : api.createPost(postForm);
+    action
       .then(() => {
         setPostMsg('Publicado ✓ — ya aparece en el inicio de la app');
         setPostForm({ title: '', body: '', videoUrl: '', linkUrl: '', image: null });
+        setEditingPostId(null);
         fetchPosts();
       })
       .catch(err => setPostMsg('Error: ' + err.message))
       .finally(() => setPostSaving(false));
+  }
+
+  function editPost(post) {
+    setEditingPostId(post._id);
+    setPostForm({
+      title: post.title || '',
+      body: post.body || '',
+      videoUrl: post.videoUrl || '',
+      linkUrl: post.linkUrl || '',
+      image: post.image || null
+    });
+    setPostMsg(null);
+    setTab('posts');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelPostEdit() {
+    setEditingPostId(null);
+    setPostForm({ title: '', body: '', videoUrl: '', linkUrl: '', image: null });
+    setPostMsg(null);
   }
 
   function handlePostDelete(p) {
@@ -494,15 +708,26 @@ function AdminApp() {
   }, [token]);
 
   useEffect(() => {
+    if (themeMode === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('adminTheme', themeMode);
+  }, [themeMode]);
+
+  useEffect(() => {
     if (!token) return;
     if (tab === 'logs') fetchLogs();
     if (tab === 'wod') fetchWods();
     if (tab === 'stats') fetchStats();
     if (tab === 'gym') fetchActive();
-    if (tab === 'info') fetchGymInfo();
+    if (tab === 'info') { fetchGymInfo(); fetchPushStatus(); }
     if (tab === 'classes') fetchClasses();
-    if (tab === 'posts') fetchPosts();
+    if (tab === 'posts') { fetchPosts(); fetchClasses(); }
   }, [token, tab]);
+
+  useEffect(() => {
+    if (!token || tab !== 'classes') return;
+    fetchClasses();
+  }, [classBranchFilter, classDateFilter]);
 
   // Live-refresh the access history every 12s so mobile logins appear on their own.
   useEffect(() => {
@@ -517,6 +742,14 @@ function AdminApp() {
     const id = setInterval(fetchActive, 8_000);
     return () => clearInterval(id);
   }, [token, tab]);
+
+  useEffect(() => {
+    if (!forgotOpen) return;
+    setForgotSupportMsg(null);
+    api.getSupportWhatsappLink()
+      .then((data) => setForgotSupport(data?.configured ? data : null))
+      .catch(() => setForgotSupport(null));
+  }, [forgotOpen]);
 
   // ── Auth ────────────────────────────────────────────────────────
   function handleLogin(e) {
@@ -534,6 +767,24 @@ function AdminApp() {
       })
       .catch(err => setAuthError(err.message))
       .finally(() => setAuthLoading(false));
+  }
+
+  function handleForgotPassword(e) {
+    e.preventDefault();
+    setForgotMsg(null);
+    setForgotLoading(true);
+    api.forgotPassword(forgotEmail || email)
+      .then((data) => setForgotMsg(data.message || 'Si el correo existe, enviaremos instrucciones.'))
+      .catch((err) => setForgotMsg(err.message))
+      .finally(() => setForgotLoading(false));
+  }
+
+  function openForgotSupport() {
+    if (!forgotSupport?.url) {
+      setForgotSupportMsg('Soporte por WhatsApp no configurado.');
+      return;
+    }
+    window.open(forgotSupport.url, '_blank', 'noopener,noreferrer');
   }
 
   function handleLogout() {
@@ -721,9 +972,51 @@ function AdminApp() {
               {authLoading ? 'Entrando…' : 'INICIAR SESIÓN'}
             </button>
           </form>
+          <button
+            type="button"
+            className="auth-link"
+            onClick={() => {
+              setForgotEmail(email);
+              setForgotMsg(null);
+              setForgotSupportMsg(null);
+              setForgotOpen(true);
+            }}
+          >
+            Olvide mi contrasena
+          </button>
           {authError && <p className="auth-error">{authError}</p>}
           <p className="auth-hint">Usa una cuenta con rol <strong>admin</strong>.</p>
         </div>
+        {forgotOpen && (
+          <div className="modal-overlay" onClick={() => setForgotOpen(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <h3>Restablecer contrasena</h3>
+              <form onSubmit={handleForgotPassword} className="stack">
+                <label className="lbl">Correo</label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="correo@ejemplo.com"
+                  required
+                />
+                <div className="row">
+                  <button type="submit" className="btn-primary" disabled={forgotLoading}>
+                    {forgotLoading ? 'Enviando...' : 'Enviar instrucciones'}
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={() => setForgotOpen(false)}>Cerrar</button>
+                </div>
+                {forgotMsg && <p className={forgotMsg.startsWith('Error') ? 'error' : 'ok'}>{forgotMsg}</p>}
+                {forgotSupportMsg && <p className="muted" style={{ fontSize: 13 }}>{forgotSupportMsg}</p>}
+                {forgotSupport?.configured && (
+                  <button type="button" className="btn-ghost btn-block" onClick={openForgotSupport}>
+                    {forgotSupport.label || 'Contactar soporte por WhatsApp'}
+                  </button>
+                )}
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -743,7 +1036,7 @@ function AdminApp() {
           <span className="brand-tag sm">ADMIN PANEL</span>
         </div>
         <nav className="nav">
-          {NAV_ITEMS.map(item => (
+          {MAIN_NAV_ITEMS.map(item => (
             <button
               key={item.id}
               className={tab === item.id ? 'nav-item active' : 'nav-item'}
@@ -757,6 +1050,18 @@ function AdminApp() {
               )}
             </button>
           ))}
+          <span className="nav-group-label">Herramientas</span>
+          {TOOL_NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              className={tab === item.id ? 'nav-item active' : 'nav-item'}
+              onClick={() => { if (item.id === 'messages') setMsgMemberId(null); setTab(item.id); }}
+            >
+              <Icon name={item.icon} />
+              <span className="nav-label">{item.label}</span>
+              {item.id === 'gym' && active.length > 0 && <span className="tab-count">{active.length}</span>}
+            </button>
+          ))}
         </nav>
         <button className="nav-item logout" onClick={handleLogout}>
           <Icon name="logout" />
@@ -765,6 +1070,7 @@ function AdminApp() {
       </aside>
 
       <main className="content" key={tab}>
+      {tab === 'home' && <AdminHomePanel onNavigate={setTab} />}
 
       {/* ── EN EL GYM (LIVE) TAB ── */}
       {tab === 'gym' && (
@@ -1101,7 +1407,104 @@ function AdminApp() {
           {gymLoading && <p className="muted">Cargando…</p>}
 
           {!gymLoading && (
-            <form onSubmit={handleGymSave} className="card stack">
+            <>
+              <div className="card stack settings-card">
+                <div className="settings-row">
+                  <div>
+                    <h3>Tema del admin</h3>
+                    <p className="muted">Preferencia guardada en este navegador.</p>
+                  </div>
+                  <div className="segmented-control" role="tablist" aria-label="Tema">
+                    {[
+                      ['dark', 'Oscuro'],
+                      ['light', 'Claro']
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={themeMode === value ? 'active' : ''}
+                        onClick={() => setThemeMode(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card stack notification-admin-card">
+                <div className="settings-row">
+                  <div>
+                    <h3>Notificaciones push</h3>
+                    <p className="muted">Estado operativo, prueba protegida y corrida manual de recordatorios.</p>
+                  </div>
+                  <span className={`status-chip ${pushStatus?.enabled ? 'active' : 'inactive'}`}>
+                    {pushStatus?.enabled ? 'habilitado' : 'desactivado'}
+                  </span>
+                </div>
+
+                <div className="notification-kpi-grid">
+                  <div>
+                    <span>Dispositivos registrados</span>
+                    <strong>{pushStatus?.tokenCount ?? '—'}</strong>
+                  </div>
+                  <div>
+                    <span>Dispositivos activos</span>
+                    <strong>{pushStatus?.enabledTokenCount ?? '—'}</strong>
+                  </div>
+                  <div>
+                    <span>Últimos envíos</span>
+                    <strong>{pushStatus?.recentLogs?.length ?? 0}</strong>
+                  </div>
+                </div>
+
+                <label className="lbl">Enviar prueba a</label>
+                <select value={pushTestMemberId} onChange={e => setPushTestMemberId(e.target.value)}>
+                  <option value="">Admin actual</option>
+                  {members
+                    .filter(member => member.role !== 'admin')
+                    .map(member => (
+                      <option key={member._id} value={member._id}>
+                        {member.name || member.email}
+                      </option>
+                    ))}
+                </select>
+
+                <div className="row">
+                  <button type="button" className="btn-primary" onClick={sendTestPush} disabled={pushLoading}>
+                    Enviar notificación de prueba
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={runPushJobs} disabled={pushLoading}>
+                    Correr recordatorios ahora
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={fetchPushStatus} disabled={pushLoading}>
+                    Actualizar
+                  </button>
+                </div>
+                {pushLoading && <p className="muted">Procesando…</p>}
+                {pushMsg && <p className={pushMsg.startsWith('Error') ? 'error' : 'ok'}>{pushMsg}</p>}
+
+                <div className="notification-log-list">
+                  {(pushStatus?.recentLogs || []).length === 0 ? (
+                    <p className="muted">Sin envíos registrados todavía.</p>
+                  ) : (
+                    pushStatus.recentLogs.map((log) => (
+                      <div key={log._id || `${log.type}-${log.sentAt}`} className="notification-log-row">
+                        <div>
+                          <strong>{log.title || log.type}</strong>
+                          <span>{log.body || 'Sin detalle'}</span>
+                        </div>
+                        <span className={`status-chip ${log.status === 'sent' ? 'active' : log.status === 'failed' ? 'expired' : 'inactive'}`}>
+                          {log.status}
+                        </span>
+                        <small>{log.sentAt ? timeAgo(log.sentAt) : '—'}</small>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <form onSubmit={handleGymSave} className="card stack">
               <label className="lbl">Aviso / recomendación del día (se destaca en la app)</label>
               <textarea name="announcement" rows={3} placeholder="p. ej. Hoy enfócate en la técnica antes que en la carga 💪"
                 value={gymForm.announcement} onChange={handleGymChange} />
@@ -1127,7 +1530,8 @@ function AdminApp() {
                 </button>
               </div>
               {gymMsg && <p className={gymMsg.startsWith('Error') ? 'error' : 'ok'}>{gymMsg}</p>}
-            </form>
+              </form>
+            </>
           )}
         </section>
       )}
@@ -1184,10 +1588,10 @@ function AdminApp() {
 
           <ScheduleEditor onChanged={fetchClasses} />
 
-          <form onSubmit={handleClassSubmit} className="card class-form">
+          <form onSubmit={submitClassForm} className="card class-form">
             <div className="class-form-head">
               <div>
-                <h3>Clase suelta (fuera del horario)</h3>
+                <h3>{editingClassId ? 'Editar clase' : 'Clase suelta / especial'}</h3>
                 <p className="muted">Para un día puntual que no se repite cada semana — un evento, una clase extra. El horario semanal de arriba ya abre las clases normales solo.</p>
               </div>
             </div>
@@ -1202,6 +1606,13 @@ function AdminApp() {
                 <span>Hora</span>
                 <input type="time" value={classForm.time}
                   onChange={e => setClassForm(p => ({ ...p, time: e.target.value }))} required />
+              </label>
+              <label className="field-col">
+                <span>Sucursal</span>
+                <select value={classForm.branch}
+                  onChange={e => setClassForm(p => ({ ...p, branch: e.target.value }))}>
+                  {BRANCHES.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+                </select>
               </label>
               <label className="field-col">
                 <span>Nombre de la clase</span>
@@ -1223,49 +1634,207 @@ function AdminApp() {
                 onChange={e => setClassForm(p => ({ ...p, description: e.target.value }))} />
             </label>
 
+            <label className="field-col field-full">
+              <span>Imagen de fondo <em>(URL opcional para Home y Reservas)</em></span>
+              <input
+                value={classForm.backgroundImage}
+                placeholder="https://..."
+                onChange={e => setClassForm(p => ({ ...p, backgroundImage: e.target.value }))}
+              />
+            </label>
+
+            <div className="special-class-box">
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={classForm.isSpecial}
+                  onChange={e => setClassForm(p => ({ ...p, isSpecial: e.target.checked, featuredOnHome: e.target.checked ? p.featuredOnHome : false }))}
+                />
+                <span>Clase especial</span>
+              </label>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={classForm.featuredOnHome}
+                  onChange={e => setClassForm(p => ({ ...p, featuredOnHome: e.target.checked, isSpecial: e.target.checked ? true : p.isSpecial }))}
+                />
+                <span>Destacar en Home mobile</span>
+              </label>
+
+              {(classForm.isSpecial || classForm.featuredOnHome) && (
+                <div className="class-form-grid">
+                  <label className="field-col">
+                    <span>Label</span>
+                    <input value={classForm.specialLabel}
+                      onChange={e => setClassForm(p => ({ ...p, specialLabel: e.target.value }))} />
+                  </label>
+                  <label className="field-col">
+                    <span>Icono</span>
+                    <select value={classForm.specialIcon}
+                      onChange={e => setClassForm(p => ({ ...p, specialIcon: e.target.value }))}>
+                      <option value="star">star</option>
+                      <option value="fire">fire</option>
+                      <option value="barbell">barbell</option>
+                      <option value="calendar">calendar</option>
+                    </select>
+                  </label>
+                  <label className="field-col">
+                    <span>Prioridad Home</span>
+                    <input type="number" value={classForm.homePriority}
+                      onChange={e => setClassForm(p => ({ ...p, homePriority: e.target.value }))} />
+                  </label>
+                  <label className="field-col">
+                    <span>Color</span>
+                    <input placeholder="#46E22A" value={classForm.specialColor}
+                      onChange={e => setClassForm(p => ({ ...p, specialColor: e.target.value }))} />
+                  </label>
+                  <label className="field-col">
+                    <span>Visible desde</span>
+                    <input type="datetime-local" value={classForm.visibleFrom}
+                      onChange={e => setClassForm(p => ({ ...p, visibleFrom: e.target.value }))} />
+                  </label>
+                  <label className="field-col">
+                    <span>Visible hasta</span>
+                    <input type="datetime-local" value={classForm.visibleUntil}
+                      onChange={e => setClassForm(p => ({ ...p, visibleUntil: e.target.value }))} />
+                  </label>
+                  <label className="field-col field-full">
+                    <span>Descripcion destacada</span>
+                    <textarea rows={2} maxLength={1000} value={classForm.specialDescription}
+                      onChange={e => setClassForm(p => ({ ...p, specialDescription: e.target.value }))} />
+                  </label>
+                </div>
+              )}
+            </div>
+
             <div className="class-form-actions">
               <button type="submit" className="btn-primary" disabled={classSaving}>
-                {classSaving ? 'Abriendo…' : '+ Abrir clase'}
+                {classSaving ? 'Guardando...' : editingClassId ? 'Guardar cambios' : '+ Abrir clase'}
               </button>
+              {editingClassId && <button type="button" className="btn-ghost" onClick={cancelClassEdit}>Cancelar edicion</button>}
               {classMsg && <span className={classMsg.startsWith('Error') ? 'error' : 'ok'}>{classMsg}</span>}
             </div>
           </form>
 
-          {classesLoading && <p className="muted">Cargando…</p>}
-          {classesError && <p className="error">Error: {classesError}</p>}
-          {!classesLoading && !classesError && groupClassesByDay(classes).length === 0 && (
-            <EmptyState icon="📅">Sin clases próximas. Abre la primera aquí arriba.</EmptyState>
+          <div className="class-calendar-toolbar card">
+            <div>
+              <h3>Calendario de reservas</h3>
+              <p className="muted">Vista diaria por sucursal para anticipar asistencia y cupos.</p>
+            </div>
+            <div className="class-calendar-controls">
+              <div className="segmented">
+                {BRANCH_FILTERS.map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={classBranchFilter === value ? 'active' : ''}
+                    onClick={() => setClassBranchFilter(value)}
+                  >
+                    {value === 'all' ? 'Todas' : value}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="date"
+                value={classDateFilter}
+                onChange={e => setClassDateFilter(e.target.value || localDayStr())}
+              />
+            </div>
+          </div>
+
+          {classesLoading && <p className="muted">Cargando calendario...</p>}
+          {classesError && (
+            <div className="card class-calendar-error">
+              <p className="error">Error: {classesError}</p>
+              <button className="btn-ghost" onClick={fetchClasses}>Reintentar</button>
+            </div>
+          )}
+          {!classesLoading && !classesError && classes.length === 0 && (
+            <EmptyState icon="📅">Sin clases para {dayLabel(`${classDateFilter}T00:00:00Z`)} en este filtro.</EmptyState>
           )}
 
-          {!classesLoading && groupClassesByDay(classes).map(([day, list]) => (
-            <div key={day}>
-              <h3 className="day-head">{day}</h3>
-              {list.map(c => (
-                <div key={c._id} className="card class-card">
-                  <div className="class-time">{c.time}</div>
-                  <div className="class-info">
-                    <h3>
-                      {c.name}
-                      {c.fromSchedule && <span className="pill pill-blue" title="Generada por el horario semanal">horario</span>}
-                    </h3>
-                    {c.description && <p className="class-desc">{c.description}</p>}
-                    <p className="meta">{c.reserved}/{c.capacity} reservados</p>
-                    {c.roster?.length > 0 && (
-                      <div className="roster">
-                        {c.roster.map((n, i) => <span key={i} className="pill pill-green">{n}</span>)}
+          {!classesLoading && !classesError && classes.length > 0 && (
+            <div className="class-calendar-day">
+              <h3 className="day-head">{dayLabel(`${classDateFilter}T00:00:00Z`)}</h3>
+              {groupClassesByBranch(classes, classBranchFilter).map(group => (
+                <div key={group.branch} className="branch-reservation-group">
+                  <div className="branch-reservation-head">
+                    <div>
+                      <h3>{group.branch}</h3>
+                      <p className="muted">{group.items.length ? `${group.items.length} clases programadas` : 'Sin clases programadas'}</p>
+                    </div>
+                    <span className="pill pill-branch">{group.branch}</span>
+                  </div>
+                  {group.items.length === 0 ? (
+                    <p className="week-empty">Sin clases en esta sucursal para el dia seleccionado.</p>
+                  ) : group.items.map(c => {
+                    const id = c._id || c.id;
+                    const open = openClassIds.has(id);
+                    const members = c.reservedMembers || [];
+                    const reservedCount = Number(c.reservedCount ?? c.reserved ?? 0);
+                    const checkedInCount = Number(c.checkedInCount ?? c.checkedIn ?? 0);
+                    const spotsLeft = Number(c.spotsLeft ?? 0);
+                    return (
+                      <div key={id} className="class-reservation-row">
+                        <button type="button" className="class-reservation-main" onClick={() => toggleClassDetails(id)}>
+                          <span className="class-time">{c.time}</span>
+                          <span className="class-reservation-title">
+                            <strong>{c.name}</strong>
+                            <small>{c.description || c.subtitle || 'Clase regular'}</small>
+                            <small>{checkedInCount} check-ins · {spotsLeft} libres · {members.length} atletas listados</small>
+                          </span>
+                          <span className="class-reservation-badges">
+                            {c.fromSchedule && <span className="pill pill-blue">horario</span>}
+                            {c.isSpecial && <span className="pill pill-yellow">{c.specialLabel || 'especial'}</span>}
+                            {c.featuredOnHome && <span className="pill pill-green">Home</span>}
+                            {(c.backgroundImage || c.imageUrl) && <span className="pill pill-blue">imagen</span>}
+                          </span>
+                          <span className={`spots-badge${c.spotsLeft === 0 ? ' full' : ''}`}>
+                            {reservedCount}/{c.capacity} reservas
+                          </span>
+                        </button>
+                        <div className="class-reservation-actions">
+                          <button className="btn-ghost btn-sm" onClick={() => toggleClassDetails(id)}>
+                            {open ? 'Ocultar atletas' : `Ver atletas (${members.length})`}
+                          </button>
+                          <button className="btn-ghost btn-sm" onClick={() => editClass(c)}>Editar</button>
+                          {c.isSpecial && (
+                            <button className="btn-ghost btn-sm" onClick={() => toggleClassHome(c)}>
+                              {c.featuredOnHome ? 'Ocultar Home' : 'Mostrar Home'}
+                            </button>
+                          )}
+                          <button className="btn-danger btn-sm" onClick={() => handleClassDelete(c)}>Eliminar</button>
+                        </div>
+                        {open && (
+                          <div className="class-reservation-roster">
+                            {members.length === 0 ? (
+                              <p className="week-empty">Todavia no hay atletas reservados.</p>
+                            ) : members.map(member => (
+                              <div key={`${id}-${member.member}`} className="reservation-athlete">
+                                <div className="reservation-athlete-info">
+                                  <strong>{member.name || 'Atleta'}</strong>
+                                  <span className="reservation-athlete-contact">
+                                    {[member.email, member.phone].filter(Boolean).join(' - ') || 'Sin contacto registrado'}
+                                  </span>
+                                  <span className="reservation-athlete-meta">
+                                    {rosterSourceLabel(member)}
+                                    {member.checkedInAt ? ` · check-in ${rosterTimeLabel(member.checkedInAt)}` : ''}
+                                  </span>
+                                </div>
+                                <span className={`pill ${member.status === 'checked_in' ? 'pill-green' : 'pill-branch'}`}>
+                                  {statusLabel(member.status)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="actions" style={{ alignItems: 'center' }}>
-                    <span className={`spots-badge${c.spotsLeft === 0 ? ' full' : ''}`}>
-                      {c.spotsLeft === 0 ? 'LLENA' : `${c.spotsLeft} libres`}
-                    </span>
-                    <button className="btn-danger" onClick={() => handleClassDelete(c)}>Eliminar</button>
-                  </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
-          ))}
+          )}
         </section>
       )}
 
@@ -1273,12 +1842,42 @@ function AdminApp() {
       {tab === 'posts' && (
         <section>
           <div className="section-head">
-            <h2>Publicaciones</h2>
+            <h2>Avisos</h2>
             <button className="btn-ghost" onClick={fetchPosts}>Actualizar</button>
           </div>
 
+          <div className="card home-panel">
+            <div className="home-panel-head">
+              <h3>Clases especiales destacadas</h3>
+              <button className="btn-ghost btn-sm" onClick={() => setTab('classes')}>Crear clase especial</button>
+            </div>
+            {classes.filter(c => c.isSpecial).length === 0 ? (
+              <p className="muted table-empty">No hay clases especiales creadas.</p>
+            ) : classes.filter(c => c.isSpecial).map(c => {
+              const now = Date.now();
+              const starts = new Date(`${classDay(c.date)}T${c.time || '00:00'}`).getTime();
+              const visibleFrom = c.visibleFrom ? new Date(c.visibleFrom).getTime() : 0;
+              const visibleUntil = c.visibleUntil ? new Date(c.visibleUntil).getTime() : starts;
+              const status = now < visibleFrom ? 'programado' : now > visibleUntil ? 'expirado' : c.featuredOnHome ? 'visible' : 'oculto';
+              return (
+                <div className="home-row" key={c._id}>
+                  <div>
+                    <strong>{c.specialLabel || c.name}</strong>
+                    <span>{classDay(c.date)} - {c.time} - {c.branch || 'Torres'} - {status}</span>
+                  </div>
+                  <div className="row">
+                    <button className="btn-ghost btn-sm" onClick={() => editClass(c)}>Editar</button>
+                    <button className="btn-ghost btn-sm" onClick={() => toggleClassHome(c)}>
+                      {c.featuredOnHome ? 'Ocultar del Home' : 'Mostrar en Home'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <form onSubmit={handlePostSubmit} className="card stack">
-            <h3 style={{ margin: 0 }}>Nueva publicación</h3>
+            <h3 style={{ margin: 0 }}>{editingPostId ? 'Editar aviso' : 'Nuevo aviso'}</h3>
             <input placeholder="Título (opcional)" maxLength={120} value={postForm.title}
               onChange={e => setPostForm(p => ({ ...p, title: e.target.value }))} />
             <textarea rows={4} maxLength={3000}
@@ -1304,6 +1903,7 @@ function AdminApp() {
               <button type="submit" className="btn-primary" disabled={postSaving}>
                 {postSaving ? 'Publicando…' : 'Publicar'}
               </button>
+              {editingPostId && <button type="button" className="btn-ghost" onClick={cancelPostEdit}>Cancelar edicion</button>}
             </div>
             {postMsg && <p className={postMsg.startsWith('Error') ? 'error' : 'ok'}>{postMsg}</p>}
           </form>
@@ -1320,6 +1920,7 @@ function AdminApp() {
                 <span className="muted" style={{ fontSize: 12 }}>
                   {new Date(p.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })} · {timeAgo(p.createdAt)}
                 </span>
+                <button className="btn-ghost btn-sm" onClick={() => editPost(p)}>Editar</button>
                 <button className="btn-danger btn-sm" onClick={() => handlePostDelete(p)}>Eliminar</button>
               </div>
               {p.title && <h3 className="post-title">{p.title}</h3>}
@@ -1353,7 +1954,38 @@ function AdminApp() {
 export default function App() {
   const match = window.location.pathname.match(/^\/athlete\/([^/]+)\/?$/);
   if (match) return <PublicAthletePage slug={decodeURIComponent(match[1])} />;
+  if (window.location.pathname === '/reset-password') return <ResetPasswordPage />;
   return <AdminApp />;
+}
+
+function groupClassesByBranch(list, branchFilter = 'all') {
+  const branches = branchFilter === 'all' ? BRANCHES : [branchFilter];
+  return branches.map(branch => ({
+    branch,
+    items: (list || [])
+      .filter(c => (c.branch || 'Torres') === branch)
+      .sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')))
+  }));
+}
+
+function statusLabel(status) {
+  if (status === 'checked_in') return 'check-in';
+  if (status === 'waitlist') return 'waitlist';
+  if (status === 'cancelled') return 'cancelada';
+  if (status === 'no_show') return 'no-show';
+  return 'reservado';
+}
+
+function rosterSourceLabel(member = {}) {
+  if (member.autoReservedByQr) return 'QR auto';
+  if (member.source === 'admin') return 'Admin';
+  if (member.source === 'qr_auto') return 'QR auto';
+  return 'App';
+}
+
+function rosterTimeLabel(value) {
+  if (!value) return null;
+  return new Date(value).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 
 function StatsView({ stats }) {

@@ -1,6 +1,8 @@
+import { createContext, useContext } from 'react';
 import { Platform } from 'react-native';
 
-export const colors = {
+const darkColors = {
+  mode: 'dark',
   base: '#050605',
   baseElevated: '#090B09',
   surface: '#121512',
@@ -17,8 +19,46 @@ export const colors = {
   textFaint: 'rgba(242, 232, 216, 0.36)',
   border: 'rgba(242, 232, 216, 0.10)',
   borderStrong: 'rgba(70, 226, 42, 0.28)',
-  danger: '#FF4444'
+  shadow: 'rgba(0, 0, 0, 0.45)',
+  danger: '#FF4444',
+  success: '#46E22A',
+  accentText: '#05230b'
 };
+
+const lightColors = {
+  ...darkColors,
+  mode: 'light',
+  base: '#ECEFE8',
+  baseElevated: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F1F4EE',
+  surfaceSoft: '#E5EADD',
+  accentSoft: 'rgba(47, 184, 22, 0.13)',
+  textPrimary: '#0B120B',
+  textMuted: 'rgba(11, 18, 11, 0.68)',
+  textFaint: 'rgba(11, 18, 11, 0.48)',
+  border: 'rgba(11, 18, 11, 0.20)',
+  borderStrong: 'rgba(31, 112, 18, 0.42)',
+  shadow: 'rgba(18, 28, 18, 0.18)'
+};
+
+export const themes = {
+  dark: darkColors,
+  light: lightColors
+};
+
+export const colors = themes.dark;
+
+export const ThemeContext = createContext({
+  colors,
+  themeMode: 'system',
+  activeThemeName: 'dark',
+  setThemeMode: () => {}
+});
+
+export function useAppTheme() {
+  return useContext(ThemeContext)?.colors || colors;
+}
 
 export const spacing = {
   xs: 4,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal,
+  Linking
 } from 'react-native';
 import Constants from 'expo-constants';
-import { colors, spacing, radii, type } from '../theme';
+import { colors, spacing, radii, type, useAppTheme } from '../theme';
 import { api, saveSession } from '../api/client';
 
 // "Sign in with Apple" es nativo de iOS. Se carga solo ahí para no romper el
@@ -29,6 +31,8 @@ const GOOGLE_ENABLED = (() => {
 })();
 
 export default function LoginScreen({ onAuthed, googleAuth }) {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +43,12 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotMessage, setForgotMessage] = useState(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [supportWhatsapp, setSupportWhatsapp] = useState(null);
+  const [supportMessage, setSupportMessage] = useState(null);
 
   const isLogin = mode === 'login';
 
@@ -47,6 +57,14 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
     if (Platform.OS !== 'ios' || !AppleAuthentication) return;
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!forgotOpen) return;
+    setSupportMessage(null);
+    api.getSupportWhatsappLink()
+      .then((data) => setSupportWhatsapp(data?.configured ? data : null))
+      .catch(() => setSupportWhatsapp(null));
+  }, [forgotOpen]);
 
   // Auto-format the date as the user types: 12082004 -> 12/08/2004
   function onBirthChange(text) {
@@ -109,6 +127,41 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitForgotPassword() {
+    const targetEmail = (forgotEmail || email).trim();
+    if (!targetEmail) {
+      setForgotMessage('Escribe tu correo.');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotMessage(null);
+    try {
+      const data = await api.forgotPassword(targetEmail);
+      setForgotMessage(data.message || 'Si el correo existe, enviaremos instrucciones.');
+    } catch (err) {
+      setForgotMessage(err.message || 'No se pudo enviar la solicitud.');
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
+  async function openSupportWhatsapp() {
+    if (!supportWhatsapp?.url) {
+      setSupportMessage('Soporte por WhatsApp no configurado.');
+      return;
+    }
+    try {
+      const canOpen = await Linking.canOpenURL(supportWhatsapp.url);
+      if (!canOpen) {
+        setSupportMessage('No se pudo abrir WhatsApp en este dispositivo.');
+        return;
+      }
+      await Linking.openURL(supportWhatsapp.url);
+    } catch {
+      setSupportMessage('No se pudo abrir WhatsApp en este momento.');
     }
   }
 
@@ -282,7 +335,14 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
           </Pressable>
 
           {isLogin && (
-            <Pressable onPress={() => {}} hitSlop={6}>
+            <Pressable
+              onPress={() => {
+                setForgotEmail(email);
+                setForgotMessage(null);
+                setForgotOpen(true);
+              }}
+              hitSlop={6}
+            >
               <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
             </Pressable>
           )}
@@ -309,6 +369,46 @@ export default function LoginScreen({ onAuthed, googleAuth }) {
           </Pressable>
         </View>
 
+        <Modal visible={forgotOpen} transparent animationType="fade" onRequestClose={() => setForgotOpen(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setForgotOpen(false)}>
+            <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Restablecer contraseña</Text>
+              <Text style={styles.modalText}>
+                Te enviaremos instrucciones si el correo existe en InRage.
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="correo@ejemplo.com"
+                placeholderTextColor={colors.textMuted}
+                value={forgotEmail}
+                onChangeText={setForgotEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {forgotMessage ? <Text style={styles.modalMessage}>{forgotMessage}</Text> : null}
+              {supportMessage ? <Text style={styles.modalMessage}>{supportMessage}</Text> : null}
+              <Pressable
+                style={[styles.primary, forgotLoading && styles.primaryDisabled]}
+                onPress={submitForgotPassword}
+                disabled={forgotLoading}
+              >
+                {forgotLoading
+                  ? <ActivityIndicator color="#05230b" />
+                  : <Text style={styles.primaryText}>ENVIAR</Text>}
+              </Pressable>
+              {supportWhatsapp?.configured ? (
+                <Pressable style={styles.supportBtn} onPress={openSupportWhatsapp}>
+                  <Text style={styles.supportBtnText}>{supportWhatsapp.label || 'Contactar soporte por WhatsApp'}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => setForgotOpen(false)} hitSlop={8}>
+                <Text style={styles.link}>Cerrar</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         <Text style={styles.footer}>
           {isLogin ? '¿Aún no eres miembro? ' : '¿Ya tienes cuenta? '}
           <Text style={styles.footerLink} onPress={() => switchMode(isLogin ? 'register' : 'login')}>
@@ -329,7 +429,8 @@ function Labeled({ label, children }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -453,6 +554,39 @@ const styles = StyleSheet.create({
   googleG: { color: '#4285F4', fontWeight: '900', fontSize: 18, marginRight: spacing.sm },
   googleText: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
 
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.md
+  },
+  modalTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' },
+  modalText: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  modalMessage: { color: colors.accent, fontSize: 13, lineHeight: 19 },
+  supportBtn: {
+    borderWidth: 1,
+    borderColor: 'rgba(70,226,42,0.42)',
+    borderRadius: radii.md,
+    paddingVertical: 13,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center'
+  },
+  supportBtnText: { color: colors.accent, fontSize: 13, fontWeight: '900' },
+
   footer: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.xl, fontSize: 14 },
   footerLink: { color: colors.accent, fontWeight: '700' }
-});
+  });
+}
+
+let styles = createStyles(colors);

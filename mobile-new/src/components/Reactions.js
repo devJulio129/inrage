@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, Modal, ScrollView, ActivityIndicator
 import { colors, spacing, radii, type } from '../theme';
 import { api } from '../api/client';
 import Avatar from './Avatar';
+import PublicAthleteModal from './PublicAthleteModal';
 
 // Las 7 reacciones de InRage. El emoji es grande y siempre va con su nombre
 // para que se entienda qué significa cada una.
@@ -25,6 +26,7 @@ export default function Reactions({ targetType, targetId, initial = null, compac
   const [picker, setPicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [who, setWho] = useState(null); // null = cerrado; [] = cargando/lista
+  const [profileSlug, setProfileSlug] = useState(null);
 
   useEffect(() => {
     if (initial) return;
@@ -105,11 +107,20 @@ export default function Reactions({ targetType, targetId, initial = null, compac
             ) : who?.list?.length ? (
               <ScrollView style={{ maxHeight: 360 }}>
                 {who.list.map((p, i) => (
-                  <View key={i} style={styles.whoRow}>
+                  <Pressable
+                    key={i}
+                    style={styles.whoRow}
+                    onPress={() => {
+                      if (!p.publicSlug) return;
+                      setWho(null);
+                      setProfileSlug(p.publicSlug);
+                    }}
+                    disabled={!p.publicSlug}
+                  >
                     <Avatar uri={p.avatar} name={p.name} size={34} />
-                    <Text style={styles.whoName}>{p.name}</Text>
+                    <Text style={[styles.whoName, p.publicSlug && styles.whoNameLink]}>{p.name}</Text>
                     <Text style={styles.whoEmoji}>{BY_TYPE[p.type]?.emoji}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </ScrollView>
             ) : (
@@ -139,6 +150,7 @@ export default function Reactions({ targetType, targetId, initial = null, compac
           </Pressable>
         </Pressable>
       </Modal>
+      <PublicAthleteModal slug={profileSlug} onClose={() => setProfileSlug(null)} />
     </View>
   );
 }
@@ -173,6 +185,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border
   },
   whoName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', flex: 1 },
+  whoNameLink: { color: colors.accent, textDecorationLine: 'underline' },
   whoEmoji: { fontSize: 22 },
   whoEmpty: { color: colors.textMuted, fontSize: 14, textAlign: 'center', marginVertical: spacing.lg },
 

@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { timeAgo, confirmAsync } from '../utils';
 import Avatar from './Avatar';
 import Reactions from './Reactions';
+import PublicAthleteModal from './PublicAthleteModal';
 
 // Hilo de comentarios con un nivel de respuestas, reacciones por comentario y
 // composer. Sirve para WODs y publicaciones (targetType).
@@ -16,6 +17,7 @@ export default function CommentsThread({ targetType, targetId, user }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [replyTo, setReplyTo] = useState(null); // comentario raíz al que respondo
+  const [profileSlug, setProfileSlug] = useState(null);
 
   const isAdmin = user?.role === 'admin';
 
@@ -68,12 +70,26 @@ export default function CommentsThread({ targetType, targetId, user }) {
 
   function CommentRow({ c, isReply }) {
     const own = String(c.member?._id) === String(user?._id);
+    const canOpenProfile = Boolean(c.member?.publicSlug);
     return (
       <View style={[styles.row, isReply && styles.replyRow]}>
-        <Avatar uri={c.member?.avatar} name={c.member?.name} size={isReply ? 28 : 34} />
+        <Pressable
+          onPress={() => canOpenProfile && setProfileSlug(c.member.publicSlug)}
+          disabled={!canOpenProfile}
+        >
+          <Avatar uri={c.member?.avatar} name={c.member?.name} size={isReply ? 28 : 34} />
+        </Pressable>
         <View style={{ flex: 1 }}>
           <View style={styles.meta}>
-            <Text style={styles.name}>{c.member?.name || 'Atleta'}</Text>
+            <Pressable
+              onPress={() => canOpenProfile && setProfileSlug(c.member.publicSlug)}
+              disabled={!canOpenProfile}
+              hitSlop={4}
+            >
+              <Text style={[styles.name, canOpenProfile && styles.nameLink]}>
+                {c.member?.name || 'Atleta'}
+              </Text>
+            </Pressable>
             <Text style={styles.time}>{timeAgo(c.createdAt)}</Text>
           </View>
           <Text style={styles.text}>{c.text}</Text>
@@ -150,6 +166,7 @@ export default function CommentsThread({ targetType, targetId, user }) {
           </Pressable>
         </View>
       </View>
+      <PublicAthleteModal slug={profileSlug} onClose={() => setProfileSlug(null)} />
     </View>
   );
 }
@@ -176,6 +193,7 @@ const styles = StyleSheet.create({
   replyRow: { marginLeft: spacing.xl, paddingVertical: spacing.sm },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
   name: { color: colors.textPrimary, fontSize: 13, fontWeight: '800' },
+  nameLink: { color: colors.accent, textDecorationLine: 'underline' },
   time: { color: colors.textMuted, fontSize: 11 },
   text: { color: colors.textPrimary, fontSize: 14, lineHeight: 20, marginTop: 2 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' },

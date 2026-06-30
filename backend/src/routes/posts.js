@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import { Post } from '../models/Post.js';
+import { notificationService } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -43,7 +44,46 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
     }
 
     const post = await Post.create({ title, body, image, videoUrl, linkUrl, createdBy: req.user._id });
+    if (notificationService.isPushEnabled()) {
+      notificationService.sendPostNotification(post._id).catch((err) => {
+        console.warn('[push] post notification failed', { message: err.message });
+      });
+    }
     res.status(201).json(await post.populate('createdBy', 'name'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/posts/:id  (admin)
+router.patch('/:id', protect, adminOnly, async (req, res, next) => {
+  try {
+    const title = (req.body.title || '').trim();
+    const body = (req.body.body || '').trim();
+    const videoUrl = (req.body.videoUrl || '').trim();
+    const linkUrl = (req.body.linkUrl || '').trim();
+    const image = req.body.image;
+
+    if (!body && !image && !videoUrl && !linkUrl) {
+      return res.status(400).json({ error: 'La publicación está vacía' });
+    }
+    if (image && (typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 400_000)) {
+      return res.status(400).json({ error: 'Imagen inválida o demasiado pesada' });
+    }
+    if (videoUrl && !/^https?:\/\/\S+$/.test(videoUrl)) {
+      return res.status(400).json({ error: 'El link del video debe empezar con http(s)://' });
+    }
+    if (linkUrl && !/^https?:\/\/\S+$/.test(linkUrl)) {
+      return res.status(400).json({ error: 'El enlace debe empezar con http(s)://' });
+    }
+
+    const post = await Post.findByIdAndUpdate(
+      req.params.id,
+      { title, body, image, videoUrl, linkUrl },
+      { new: true, runValidators: true }
+    ).populate('createdBy', 'name');
+    if (!post) return res.status(404).json({ error: 'Publicación no encontrada' });
+    res.json(post);
   } catch (err) {
     next(err);
   }

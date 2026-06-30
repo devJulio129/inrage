@@ -1,5 +1,6 @@
 import { ClassTemplate } from '../models/ClassTemplate.js';
 import { GymClass } from '../models/GymClass.js';
+import { normalizeBranch } from './branches.js';
 
 // El box vive en Tampico (UTC-6, sin horario de verano desde 2022). El server
 // corre en UTC, así que para saber "qué día es hoy en el gym" y qué día de la
@@ -24,7 +25,7 @@ function addDaysUTC(date, n) {
 }
 
 // Materializa clases concretas (reservables) a partir del horario semanal para
-// la ventana [hoy … hoy + DAYS_AHEAD]. Idempotente: el upsert por {date,time}
+// la ventana [hoy … hoy + DAYS_AHEAD]. Idempotente: el upsert por {date,time,branch}
 // no toca clases ya creadas (preserva reservas), y `generatedThrough` impide
 // resucitar un día que el coach canceló a mano. Pensado para correr en cada
 // lectura de /api/classes — barato porque casi siempre es no-op.
@@ -35,6 +36,7 @@ export async function ensureScheduledClasses() {
   const slots = await ClassTemplate.find({ active: true });
 
   for (const slot of slots) {
+    const branch = normalizeBranch(slot.branch);
     // Empieza en hoy, salvo que ya hayamos generado más adelante.
     let cursor = today;
     if (slot.generatedThrough) {
@@ -45,12 +47,13 @@ export async function ensureScheduledClasses() {
     for (let d = new Date(cursor); d <= horizon; d = addDaysUTC(d, 1)) {
       if (d.getUTCDay() !== slot.weekday) continue;
       await GymClass.updateOne(
-        { date: d, time: slot.time },
+        { date: d, time: slot.time, branch },
         {
           $setOnInsert: {
             date: d,
             time: slot.time,
             name: slot.name,
+            branch,
             description: slot.description || '',
             capacity: slot.capacity,
             template: slot._id,

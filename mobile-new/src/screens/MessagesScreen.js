@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable, TextInput,
   ActivityIndicator, Image, KeyboardAvoidingView, Platform, Linking
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { colors, spacing, radii, type } from '../theme';
+import { colors, spacing, radii, type, useAppTheme } from '../theme';
 import { api } from '../api/client';
 
 function timeShort(date) {
@@ -29,6 +29,8 @@ function Attachment({ a }) {
 // Bandeja del atleta: conversación con el gimnasio. Puede responder con texto
 // y/o una foto (las imágenes se reducen antes de subir).
 export default function MessagesScreen({ user, onBack, onReadAll }) {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [thread, setThread] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -149,7 +151,8 @@ export default function MessagesScreen({ user, onBack, onReadAll }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   header: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
@@ -211,4 +214,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center'
   },
   sendDisabled: { opacity: 0.4 }
-});
+  });
+}
+
+let styles = createStyles(colors);

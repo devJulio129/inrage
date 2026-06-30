@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   ActivityIndicator, TextInput, Image, Alert, Linking, Share, Switch
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { colors, spacing, radii, type } from '../theme';
+import { colors, spacing, radii, type, useAppTheme } from '../theme';
 import { api } from '../api/client';
 
 // Nombres en inglés, como se publican en el pizarrón del box.
@@ -142,7 +142,21 @@ const RANK_META = {
   leyenda: { label: 'Leyenda', color: '#C79BE0' }
 };
 
+function movementCategoryIcon(category = '') {
+  const value = String(category).toLowerCase();
+  if (value.includes('olympic')) return 'barbell-outline';
+  if (value.includes('strength')) return 'fitness-outline';
+  if (value.includes('gymnastics')) return 'ellipse-outline';
+  if (value.includes('distancias')) return 'walk-outline';
+  if (value.includes('calor')) return 'heart-outline';
+  if (value.includes('rendimiento')) return 'stopwatch-outline';
+  if (value.includes('medidas')) return 'body-outline';
+  return 'ribbon-outline';
+}
+
 export default function ProfileScreen({ user, onUserUpdate }) {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [profile, setProfile] = useState(user);
   const [visits, setVisits] = useState(null);
   const [streak, setStreak] = useState(null);
@@ -630,7 +644,10 @@ export default function ProfileScreen({ user, onUserUpdate }) {
             return (
               <View key={category} style={styles.prGroup}>
                 <Pressable style={styles.prCatHead} onPress={() => toggleCat(category)}>
-                  <Text style={styles.prCategory}>{category}</Text>
+                  <View style={styles.prCatLeft}>
+                    <Ionicons name={movementCategoryIcon(category)} size={18} color={open ? colors.accent : colors.textMuted} />
+                    <Text style={styles.prCategory}>{category}</Text>
+                  </View>
                   <View style={styles.prCatRight}>
                     <Text style={styles.prCatCount}>{filled}/{items.length}</Text>
                     <Text style={styles.prChevron}>{open ? '▾' : '▸'}</Text>
@@ -730,7 +747,8 @@ const GENDER_OPTIONS = [
   { value: 'prefer_not_to_say', label: 'Sin especificar' },
 ];
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.base },
   content: { padding: spacing.lg, paddingTop: spacing.xl, alignItems: 'center', paddingBottom: spacing.xxl },
 
@@ -886,6 +904,7 @@ const styles = StyleSheet.create({
     color: colors.accent, fontSize: 12, fontWeight: '800',
     letterSpacing: 1, textTransform: 'uppercase'
   },
+  prCatLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   prCatRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   prCatCount: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   prChevron: { color: colors.textMuted, fontSize: 12 },
@@ -956,4 +975,145 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.sm,
   },
   editSaveBtnText: { color: '#05230b', fontWeight: '900', fontSize: 14, letterSpacing: 1 },
-});
+
+  /* Premium visual pass */
+  content: { padding: spacing.lg, paddingTop: spacing.xl, alignItems: 'center', paddingBottom: spacing.xxl },
+  profileHero: {
+    width: '100%',
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0,
+    padding: 0,
+    marginBottom: spacing.lg,
+    shadowOpacity: 0,
+    elevation: 0
+  },
+  avatarWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8
+  },
+  avatarImg: { width: 104, height: 104, borderRadius: 52, borderWidth: 2, borderColor: 'rgba(70,226,42,0.72)' },
+  avatarPlaceholder: {
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.accent,
+    shadowOpacity: 0.5,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 0 }
+  },
+  avatarText: { color: '#05230b', fontSize: 36, fontWeight: '900' },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 52,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.accent,
+    borderWidth: 3,
+    borderColor: colors.base,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  profileKicker: { color: colors.accent, fontSize: 11, letterSpacing: 2.8, fontWeight: '900', marginBottom: 2 },
+  name: { color: colors.textPrimary, fontFamily: type.display, fontSize: 62, letterSpacing: 1.5, lineHeight: 66 },
+  email: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: spacing.sm },
+  statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    borderWidth: 1
+  },
+  rankChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.03)'
+  },
+  statsRow: { flexDirection: 'row', gap: spacing.sm, width: '100%', marginBottom: spacing.lg },
+  statCard: {
+    flex: 1,
+    minHeight: 112,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 18,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 6
+  },
+  statValue: { color: colors.textPrimary, fontFamily: type.display, fontSize: 32, letterSpacing: 1, lineHeight: 36 },
+  statLabel: { color: colors.textMuted, fontSize: 10.5, letterSpacing: 1, textTransform: 'uppercase', textAlign: 'left' },
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontFamily: type.display,
+    fontSize: 31,
+    letterSpacing: 1.8,
+    marginBottom: 2
+  },
+  sectionAccent: { width: 5, height: 28, borderRadius: 3, backgroundColor: colors.accent },
+  prGroup: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm + 4
+  },
+  prCategory: { color: colors.textPrimary, fontFamily: type.mono, fontSize: 13, fontWeight: '900', letterSpacing: 2, textTransform: 'uppercase' },
+  prValue: { color: colors.accent, fontSize: 18, fontWeight: '900' },
+  publicCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    marginBottom: spacing.xl
+  },
+  card: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl
+  },
+  });
+}
+
+let styles = createStyles(colors);

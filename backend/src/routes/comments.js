@@ -2,9 +2,18 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { protect } from '../middleware/authMiddleware.js';
 import { Comment } from '../models/Comment.js';
+import { publicIdentity } from '../services/publicProfiles.js';
 
 const router = Router();
 const TYPES = ['workout', 'post'];
+
+function serializeComment(comment) {
+  const obj = comment?.toObject ? comment.toObject() : comment;
+  return {
+    ...obj,
+    member: publicIdentity(obj.member)
+  };
+}
 
 // GET /api/comments?targetType=&targetId=  → todos (raíz + respuestas).
 // El cliente arma el hilo. Incluye nombre y avatar del autor.
@@ -16,9 +25,9 @@ router.get('/', protect, async (req, res, next) => {
     }
     const comments = await Comment.find({ targetType, targetId })
       .sort({ createdAt: 1 })
-      .populate('member', 'name avatar')
+      .populate('member', 'name avatar publicProfile')
       .lean();
-    res.json(comments);
+    res.json(comments.map(serializeComment));
   } catch (err) {
     next(err);
   }
@@ -58,7 +67,8 @@ router.post('/', protect, async (req, res, next) => {
       // Solo un nivel de hilo: la respuesta a una respuesta cuelga de la raíz.
       parentId: parent ? (parent.parentId || parent._id) : null
     });
-    res.status(201).json(await comment.populate('member', 'name avatar'));
+    const populated = await comment.populate('member', 'name avatar publicProfile');
+    res.status(201).json(serializeComment(populated));
   } catch (err) {
     next(err);
   }

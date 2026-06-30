@@ -2,6 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { protect } from '../middleware/authMiddleware.js';
 import { Reaction, REACTION_TYPES, REACTION_TARGETS } from '../models/Reaction.js';
+import { publicIdentity } from '../services/publicProfiles.js';
 
 const router = Router();
 
@@ -59,12 +60,11 @@ router.get('/who', protect, async (req, res, next) => {
     }
     const rows = await Reaction.find({ targetType, targetId })
       .sort({ createdAt: 1 })
-      .populate('member', 'name avatar')
+      .populate('member', 'name avatar publicProfile')
       .lean();
     res.json(rows.map((r) => ({
       type: r.type,
-      name: r.member?.name || 'Atleta',
-      avatar: r.member?.avatar || null
+      ...publicIdentity(r.member)
     })));
   } catch (err) {
     next(err);

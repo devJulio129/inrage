@@ -12,13 +12,13 @@ export function timeAgo(date) {
 }
 
 // Confirm multiplataforma (Alert.alert no hace nada en react-native-web).
-export function confirmAsync(title, msg, action = 'Eliminar') {
+export function confirmAsync(title, msg, action = 'Eliminar', cancelLabel = 'Cancelar') {
   if (Platform.OS === 'web') {
     return Promise.resolve(window.confirm(`${title}\n${msg}`));
   }
   return new Promise((resolve) =>
     Alert.alert(title, msg, [
-      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+      { text: cancelLabel, style: 'cancel', onPress: () => resolve(false) },
       { text: action, style: 'destructive', onPress: () => resolve(true) }
     ])
   );

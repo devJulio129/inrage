@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,12 @@ import {
   ScrollView,
   RefreshControl
 } from 'react-native';
-import { colors, spacing, radii, type } from '../theme';
+import { colors, spacing, radii, type, useAppTheme } from '../theme';
 import { api } from '../api/client';
 
 export default function TodayWorkoutScreen() {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [workout, setWorkout] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,7 +90,8 @@ function formatDate(d) {
     .toUpperCase();
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.base
@@ -157,4 +160,7 @@ const styles = StyleSheet.create({
     fontFamily: type.mono,
     fontSize: 13
   }
-});
+  });
+}
+
+let styles = createStyles(colors);

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { DEFAULT_BRANCH, BRANCHES } from '../services/branches.js';
 
 // Una franja recurrente del horario semanal del box: "los lunes a las 18:00
 // hay CrossFit con 12 lugares". El horario es estático (se repite cada semana);
@@ -9,6 +10,7 @@ const classTemplateSchema = new mongoose.Schema(
     // 0 = domingo … 6 = sábado (convención de Date.getUTCDay), en hora del gym.
     weekday: { type: Number, required: true, min: 0, max: 6, index: true },
     time: { type: String, required: true, trim: true }, // "18:00"
+    branch: { type: String, enum: BRANCHES, default: DEFAULT_BRANCH, index: true },
     name: { type: String, default: 'CrossFit', trim: true, maxlength: 60 },
     description: { type: String, trim: true, maxlength: 1000 },
     capacity: { type: Number, required: true, min: 1, max: 100 },

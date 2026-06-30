@@ -1,16 +1,51 @@
 import { Router } from 'express';
 import dns from 'node:dns/promises';
+import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Member } from '../models/Member.js';
 import { LoginLog } from '../models/LoginLog.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { verifyAppleToken } from '../services/appleAuth.js';
+import { emailService } from '../services/email.js';
 import { serializeMembership } from '../services/memberships.js';
 
 const router = Router();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const FORGOT_PASSWORD_MESSAGE = 'Si el correo existe, enviaremos instrucciones para restablecer tu contrasena.';
+const RESET_EXPIRES_MINUTES = Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES || 60);
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+function safeTokenEquals(a, b) {
+  if (!a || !b) return false;
+  const left = Buffer.from(String(a), 'hex');
+  const right = Buffer.from(String(b), 'hex');
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+function makeResetUrl(email, token) {
+  const base = (
+    process.env.APP_PUBLIC_URL ||
+    process.env.ADMIN_PUBLIC_URL ||
+    process.env.PUBLIC_WEB_URL ||
+    'http://localhost:5173'
+  ).replace(/\/$/, '');
+  const params = new URLSearchParams({ email, token });
+  return `${base}/reset-password?${params.toString()}`;
+}
+
+function findMemberByEmail(email) {
+  return Member.findOne({ email: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+}
 
 // Checks that the email's domain exists and can receive mail (MX lookup) —
 // catches typos like "gmial.com" WITHOUT sending anything to the address.
@@ -40,6 +75,104 @@ function logAccess(member, event, req) {
     ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
   }).catch(() => {});
 }
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+
+    if (EMAIL_RE.test(email)) {
+      const member = await findMemberByEmail(email);
+      if (member) {
+        const tempPassword = `IR-${crypto.randomBytes(9).toString('base64url')}`;
+        const resetToken = crypto.randomBytes(32).toString('base64url');
+        const expiresAt = new Date(Date.now() + RESET_EXPIRES_MINUTES * 60_000);
+
+        member.passwordReset = {
+          tempPasswordHash: await bcrypt.hash(tempPassword, 10),
+          tempPasswordExpiresAt: expiresAt,
+          resetTokenHash: hashResetToken(resetToken),
+          resetTokenExpiresAt: expiresAt,
+          mustChangePassword: true,
+          requestedAt: new Date()
+        };
+        await member.save();
+
+        const resetUrl = makeResetUrl(member.email || email, resetToken);
+        try {
+          await emailService.sendPasswordResetEmail({
+            to: member.email || email,
+            name: member.name,
+            tempPassword,
+            resetUrl,
+            expiresMinutes: RESET_EXPIRES_MINUTES
+          });
+        } catch (err) {
+          console.error('[auth] password reset email failed', {
+            code: err.code || 'EMAIL_SEND_FAILED',
+            provider: err.provider || null,
+            message: err.message
+          });
+          return res.status(err.status || 502).json({ error: err.message || 'Email provider rejected message' });
+        }
+      }
+    }
+
+    res.json({ ok: true, message: FORGOT_PASSWORD_MESSAGE });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const token = String(req.body?.token || '').trim();
+    const tempPassword = String(req.body?.tempPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+
+    if (!EMAIL_RE.test(email) || !token || !tempPassword) {
+      return res.status(400).json({ error: 'Token o contrasena provisional invalidos' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'La nueva contrasena debe tener al menos 6 caracteres' });
+    }
+
+    const member = await findMemberByEmail(email);
+    const reset = member?.passwordReset;
+    const now = new Date();
+    const tokenHash = hashResetToken(token);
+
+    const resetValid = Boolean(
+      member &&
+      reset?.resetTokenHash &&
+      reset?.tempPasswordHash &&
+      !reset.usedAt &&
+      reset.resetTokenExpiresAt &&
+      reset.tempPasswordExpiresAt &&
+      new Date(reset.resetTokenExpiresAt) > now &&
+      new Date(reset.tempPasswordExpiresAt) > now &&
+      safeTokenEquals(reset.resetTokenHash, tokenHash)
+    );
+    if (!resetValid) {
+      return res.status(400).json({ error: 'Token o contrasena provisional invalidos o expirados' });
+    }
+
+    const tempMatches = await bcrypt.compare(tempPassword, reset.tempPasswordHash);
+    if (!tempMatches) {
+      return res.status(400).json({ error: 'Token o contrasena provisional invalidos o expirados' });
+    }
+
+    member.password = await bcrypt.hash(newPassword, 10);
+    member.passwordReset = undefined;
+    await member.save();
+
+    res.json({ ok: true, message: 'Contrasena actualizada' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {

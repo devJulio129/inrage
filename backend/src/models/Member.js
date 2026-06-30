@@ -31,6 +31,22 @@ const pushTokenSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const notificationPreferencesSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: true },
+    posts: { type: Boolean, default: true },
+    classReminders: { type: Boolean, default: true },
+    classChanges: { type: Boolean, default: true },
+    membership: { type: Boolean, default: true },
+    branchPreference: {
+      type: String,
+      enum: ["all", "Torres", "Central"],
+      default: "all",
+    },
+  },
+  { _id: false },
+);
+
 const publicProfileSchema = new mongoose.Schema(
   {
     enabled: { type: Boolean, default: false },
@@ -44,6 +60,19 @@ const publicProfileSchema = new mongoose.Schema(
     featuredPrs: { type: [String], default: [] },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+const passwordResetSchema = new mongoose.Schema(
+  {
+    tempPasswordHash: { type: String },
+    tempPasswordExpiresAt: { type: Date },
+    resetTokenHash: { type: String },
+    resetTokenExpiresAt: { type: Date },
+    mustChangePassword: { type: Boolean, default: false },
+    usedAt: { type: Date },
+    requestedAt: { type: Date },
   },
   { _id: false },
 );
@@ -89,7 +118,9 @@ const memberSchema = new mongoose.Schema(
     avatar: { type: String, default: null },
     membership: { type: membershipSchema, default: undefined },
     publicProfile: { type: publicProfileSchema, default: undefined },
+    passwordReset: { type: passwordResetSchema, default: undefined },
     pushTokens: { type: [pushTokenSchema], default: [] },
+    notificationPreferences: { type: notificationPreferencesSchema, default: () => ({}) },
   },
   { timestamps: true },
 );

@@ -167,6 +167,16 @@ export function serializeOwnPublicProfile(member) {
   };
 }
 
+export function publicIdentity(member) {
+  const profile = normalizePublicProfile(member?.publicProfile);
+  return {
+    _id: member?._id || null,
+    name: member?.name || 'Atleta',
+    avatar: member?.avatar || null,
+    publicSlug: profile.enabled && profile.slug ? profile.slug : null
+  };
+}
+
 function cleanText(value, maxLength) {
   const text = String(value || '').trim();
   if (text.length > maxLength) {

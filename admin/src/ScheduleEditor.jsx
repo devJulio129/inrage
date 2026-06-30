@@ -12,7 +12,8 @@ const WEEKDAYS = [
   { value: 0, short: 'Dom', long: 'Domingo' }
 ];
 
-const EMPTY = { time: '18:00', name: 'CrossFit', capacity: 12 };
+const BRANCHES = ['Torres', 'Central'];
+const EMPTY = { time: '18:00', branch: 'Torres', name: 'CrossFit', capacity: 12 };
 
 // Editor del horario semanal recurrente. El coach define qué días y a qué horas
 // hay clase; el backend materializa esas franjas en clases reservables para los
@@ -60,6 +61,7 @@ export default function ScheduleEditor({ onChanged }) {
         await api.createClassTemplate({
           weekday,
           time: form.time,
+          branch: form.branch,
           name: form.name || 'CrossFit',
           capacity
         });
@@ -77,7 +79,7 @@ export default function ScheduleEditor({ onChanged }) {
 
   function handleDelete(slot) {
     const label = WEEKDAYS.find(d => d.value === slot.weekday)?.long || '';
-    if (!window.confirm(`¿Quitar ${label} a las ${slot.time} del horario? Se borran las clases futuras de esa franja que nadie haya reservado.`)) return;
+    if (!window.confirm(`¿Quitar ${slot.branch || 'Torres'} ${label} a las ${slot.time} del horario? Se borran las clases futuras de esa franja que nadie haya reservado.`)) return;
     api.deleteClassTemplate(slot._id)
       .then(() => { fetchSlots(); onChanged?.(); })
       .catch(err => alert('Error: ' + err.message));
@@ -88,7 +90,7 @@ export default function ScheduleEditor({ onChanged }) {
     ...d,
     items: slots
       .filter(s => s.weekday === d.value)
-      .sort((a, b) => a.time.localeCompare(b.time))
+      .sort((a, b) => String(a.branch || 'Torres').localeCompare(String(b.branch || 'Torres')) || a.time.localeCompare(b.time))
   }));
 
   return (
@@ -124,6 +126,13 @@ export default function ScheduleEditor({ onChanged }) {
               onChange={e => setForm(p => ({ ...p, time: e.target.value }))} required />
           </label>
           <label className="field-col">
+            <span>Sucursal</span>
+            <select value={form.branch}
+              onChange={e => setForm(p => ({ ...p, branch: e.target.value }))}>
+              {BRANCHES.map(branch => <option key={branch} value={branch}>{branch}</option>)}
+            </select>
+          </label>
+          <label className="field-col">
             <span>Nombre</span>
             <input value={form.name} placeholder="CrossFit"
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -155,6 +164,7 @@ export default function ScheduleEditor({ onChanged }) {
                   <div className="week-slot-main">
                     <span className="week-slot-time">{s.time}</span>
                     <span className="week-slot-name">{s.name}</span>
+                    <span className="pill pill-branch">{s.branch || 'Torres'}</span>
                   </div>
                   <span className="week-slot-cap">{s.capacity} lug.</span>
                   <button className="week-slot-del" title="Quitar del horario"

@@ -39,18 +39,21 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar style="light" />
-        {booting || !fontsLoaded ? (
+      {booting || !fontsLoaded ? (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+          <StatusBar style="light" />
           <View style={styles.center}>
             <ActivityIndicator color={colors.accent} size="large" />
           </View>
-        ) : user ? (
-          <MainApp user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />
-        ) : (
+        </SafeAreaView>
+      ) : user ? (
+        <MainApp user={user} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />
+      ) : (
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+          <StatusBar style="light" />
           <LoginScreen onAuthed={setUser} googleAuth={googleAuth} />
-        )}
-      </SafeAreaView>
+        </SafeAreaView>
+      )}
     </SafeAreaProvider>
   );
 }

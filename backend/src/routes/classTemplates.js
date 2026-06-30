@@ -3,6 +3,7 @@ import { protect, adminOnly } from '../middleware/authMiddleware.js';
 import { ClassTemplate } from '../models/ClassTemplate.js';
 import { GymClass } from '../models/GymClass.js';
 import { gymTodayUTC } from '../services/classSchedule.js';
+import { branchFilter, normalizeBranch } from '../services/branches.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
 router.get('/', protect, async (_req, res, next) => {
   try {
     const slots = await ClassTemplate.find()
-      .sort({ weekday: 1, time: 1 })
+      .sort({ weekday: 1, branch: 1, time: 1 })
       .lean();
     res.json(slots);
   } catch (err) {
@@ -40,6 +41,7 @@ router.post('/', protect, adminOnly, async (req, res, next) => {
     const slot = await ClassTemplate.create({
       weekday: wd,
       time: String(time).trim(),
+      branch: branchFilter(req.body.branch) || normalizeBranch(req.body.branch),
       name: (name || 'CrossFit').trim(),
       description: (description || '').trim(),
       capacity: Math.min(capacity, 100)

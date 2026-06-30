@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api/client';
-import { colors, spacing, radii, type } from '../theme';
+import { colors, spacing, radii, type, useAppTheme } from '../theme';
 
 function formatNotificationDate(value) {
   if (!value) return '';
@@ -30,6 +30,8 @@ function notificationIcon(type) {
 }
 
 export default function NotificationsScreen({ onBack, onUnreadChange }) {
+  const palette = useAppTheme();
+  styles = useMemo(() => createStyles(palette), [palette]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,7 +80,7 @@ export default function NotificationsScreen({ onBack, onUnreadChange }) {
       <View style={styles.header}>
         <Pressable style={styles.back} onPress={onBack} hitSlop={8}>
           <Ionicons name="chevron-back" size={21} color={colors.textPrimary} />
-          <Text style={styles.backText}>Ajustes</Text>
+          <Text style={styles.backText}>Cuenta</Text>
         </Pressable>
         <Text style={styles.title}>NOTIFICACIONES</Text>
         <View style={styles.headerSpacer} />
@@ -142,7 +144,8 @@ export default function NotificationsScreen({ onBack, onUnreadChange }) {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors) {
+  return StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.base },
   header: {
     minHeight: 64,
@@ -208,4 +211,7 @@ const styles = StyleSheet.create({
   unreadDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
   itemText: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginTop: 5 },
   itemDate: { color: colors.textMuted, opacity: 0.7, fontSize: 10, marginTop: spacing.sm }
-});
+  });
+}
+
+let styles = createStyles(colors);

@@ -4,14 +4,19 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 async function request(path, options = {}) {
     const token = localStorage.getItem('token');
-    const res = await fetch(`${API_URL}${path}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...options.headers,
-        },
-    });
+    let res;
+    try {
+        res = await fetch(`${API_URL}${path}`, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                ...options.headers,
+            },
+        });
+    } catch {
+        throw new Error(`No se pudo conectar con el servidor (${API_URL}). Verifica que el backend este corriendo.`);
+    }
     if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const err = new Error(body.error || body.message || `HTTP ${res.status}`);
@@ -21,11 +26,29 @@ async function request(path, options = {}) {
     return res.json();
 }
 
+function toQuery(params = {}) {
+    const pairs = Object.entries(params)
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+    return pairs.length ? `?${pairs.join('&')}` : '';
+}
+
 export const api = {
     login: (email, password) =>
         request('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
+        }),
+    forgotPassword: (email) =>
+        request('/api/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        }),
+    getSupportWhatsappLink: () => request('/api/support/whatsapp-link'),
+    resetPassword: (data) =>
+        request('/api/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
         }),
 
     listMembers: () => request('/api/members'),
@@ -80,11 +103,21 @@ export const api = {
 
     // Clases con cupo
     listClasses: () => request('/api/classes'),
+    getClassesCalendar: (params = {}) => request(`/api/classes/calendar${toQuery(params)}`),
     createClass: (data) =>
         request('/api/classes', { method: 'POST', body: JSON.stringify(data) }),
+    updateClass: (id, data) =>
+        request(`/api/classes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deleteClass: (id) => request(`/api/classes/${id}`, { method: 'DELETE' }),
     listTodayClasses: () => request('/api/classes/admin/today'),
     getClassRoster: (id) => request(`/api/classes/${id}/roster`),
+    getBranchCheckInQr: (branch) =>
+        request(`/api/admin/checkin-qr?branch=${encodeURIComponent(branch || 'Torres')}`),
+    generateBranchCheckInQr: (branch) =>
+        request('/api/admin/checkin-qr', {
+            method: 'POST',
+            body: JSON.stringify({ branch: branch || 'Torres' }),
+        }),
     getCurrentCheckInToken: (id) => request(`/api/classes/${id}/check-in-token/current`),
     createCheckInToken: (id) => request(`/api/classes/${id}/check-in-token`, { method: 'POST' }),
     manualClassCheckIn: (classId, memberId) =>
@@ -124,6 +157,7 @@ export const api = {
         }),
     getPublicAthlete: (slug) =>
         request(`/api/public/athletes/${encodeURIComponent(slug)}`),
+    getHomeHighlights: () => request('/api/home/highlights'),
 
     // Horario semanal (franjas recurrentes que se materializan en clases)
     listClassTemplates: () => request('/api/class-templates'),
@@ -136,6 +170,8 @@ export const api = {
     listPosts: () => request('/api/posts'),
     createPost: (data) =>
         request('/api/posts', { method: 'POST', body: JSON.stringify(data) }),
+    updatePost: (id, data) =>
+        request(`/api/posts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     deletePost: (id) => request(`/api/posts/${id}`, { method: 'DELETE' }),
 
     // Mensajería (inbox por atleta)
@@ -149,4 +185,18 @@ export const api = {
     // Reacciones — quién reaccionó
     reactionsWho: (targetType, targetId) =>
         request(`/api/reactions/who?targetType=${targetType}&targetId=${targetId}`),
+
+    testEmail: (to) =>
+        request('/api/admin/test-email', {
+            method: 'POST',
+            body: JSON.stringify({ to }),
+        }),
+    getPushStatus: () => request('/api/admin/notifications/status'),
+    sendTestPush: (memberId) =>
+        request('/api/admin/notifications/test', {
+            method: 'POST',
+            body: JSON.stringify(memberId ? { memberId } : {}),
+        }),
+    runNotificationJobs: () =>
+        request('/api/admin/notifications/run-due', { method: 'POST' }),
 };
